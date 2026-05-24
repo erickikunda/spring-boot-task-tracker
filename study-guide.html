@@ -1,0 +1,2451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spring Boot Task Tracker — Study Guide</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181b27;
+      --surface2:  #1f2235;
+      --border:    #2b2f46;
+      --accent:    #6c9bcf;
+      --accent2:   #7ec8a4;
+      --accent3:   #e0974a;
+      --text:      #cdd3e8;
+      --text-dim:  #7a8299;
+      --bright:    #f0f4ff;
+      --code-bg:   #12141f;
+      --code-bdr:  #252840;
+      --red:       #e06c75;
+      --yellow:    #e5c07b;
+      --green:     #98c379;
+      --blue:      #61afef;
+      --purple:    #c678dd;
+      --cyan:      #56b6c2;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.68;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 6rem;
+    }
+
+    /* ── Typography ─────────────────────────────────────────── */
+    h1 { font-size: 2.1rem; color: var(--bright); font-weight: 700; letter-spacing: -0.4px; }
+    h2 { font-size: 1.5rem; color: var(--bright); font-weight: 600;
+         margin: 2.8rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+    h3 { font-size: 1.1rem; color: var(--accent); font-weight: 600; margin: 1.6rem 0 0.55rem; }
+    h4 { font-size: 0.82rem; color: var(--accent2); font-weight: 700; margin: 1.2rem 0 0.4rem;
+         text-transform: uppercase; letter-spacing: 0.7px; }
+    p  { margin-bottom: 0.9rem; }
+    ul, ol { padding-left: 1.6rem; margin-bottom: 0.9rem; }
+    li { margin-bottom: 0.3rem; }
+    strong { color: var(--bright); font-weight: 600; }
+    em { color: var(--yellow); font-style: italic; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .page-header { padding: 2rem 0 1.8rem; border-bottom: 2px solid var(--border); margin-bottom: 2.5rem; }
+    .page-header .sub { color: var(--text-dim); font-size: 0.97rem; margin-top: 0.45rem; }
+    .chip {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.72rem;
+      padding: 0.15rem 0.55rem;
+      color: var(--text-dim);
+      margin: 0.5rem 0.3rem 0 0;
+    }
+    .chip.a { border-color: var(--accent); color: var(--accent); }
+    .chip.g { border-color: var(--green);  color: var(--green); }
+    .chip.y { border-color: var(--yellow); color: var(--yellow); }
+    .chip.r { border-color: var(--red);    color: var(--red); }
+
+    /* ── TOC ─────────────────────────────────────────────────── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 1.2rem 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .toc-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.9px;
+                 color: var(--text-dim); font-weight: 700; margin-bottom: 0.75rem; }
+    .toc ol { margin-bottom: 0; counter-reset: toc-item; list-style: none; padding-left: 0; }
+    .toc li { counter-increment: toc-item; font-size: 0.91rem; }
+    .toc li::before { content: "0" counter(toc-item) " — "; color: var(--accent); font-weight: 600; font-size: 0.78rem; }
+    .toc a { color: var(--text); text-decoration: none; }
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px,1fr)); gap: 1rem; margin: 1rem 0 1.5rem; }
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.2rem;
+    }
+    .card .num { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 0.3rem; }
+    .card h4 { color: var(--bright); margin-top: 0; font-size: 0.92rem; text-transform: none; letter-spacing: 0; }
+    .card p { font-size: 0.84rem; color: var(--text-dim); margin-bottom: 0; }
+
+    /* ── Callouts ────────────────────────────────────────────── */
+    .callout { border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 6px 6px 0; padding: 0.9rem 1.1rem; margin: 1rem 0 1.4rem; }
+    .callout.warn    { border-color: var(--yellow); }
+    .callout.danger  { border-color: var(--red); }
+    .callout.success { border-color: var(--green); }
+    .ct { font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; margin-bottom: 0.35rem; color: var(--accent); }
+    .callout.warn    .ct { color: var(--yellow); }
+    .callout.danger  .ct { color: var(--red); }
+    .callout.success .ct { color: var(--green); }
+
+    /* ── Code ─────────────────────────────────────────────────── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-bdr);
+      border-radius: 6px;
+      padding: 1.1rem 1.3rem;
+      overflow-x: auto;
+      margin: 0.8rem 0 1.3rem;
+      font-family: 'JetBrains Mono','Fira Code','Cascadia Code',Consolas,monospace;
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+    code { font-family: 'JetBrains Mono','Fira Code','Cascadia Code',Consolas,monospace;
+           font-size: 0.83em; background: var(--code-bg); border: 1px solid var(--code-bdr);
+           border-radius: 3px; padding: 0.1em 0.35em; color: var(--cyan); }
+    pre code { background: none; border: none; padding: 0; font-size: inherit; color: var(--text); }
+    .hl-ann    { color: #e0974a; }
+    .hl-kw     { color: #c678dd; }
+    .hl-type   { color: #e5c07b; }
+    .hl-str    { color: #98c379; }
+    .hl-cmt    { color: #4b5268; font-style: italic; }
+    .hl-fn     { color: #61afef; }
+
+    /* ── Diagram ─────────────────────────────────────────────── */
+    .diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--code-bdr);
+      border-radius: 6px;
+      padding: 1.4rem 1.6rem;
+      margin: 0.8rem 0 1.4rem;
+      overflow-x: auto;
+    }
+    .diagram pre { background: none; border: none; padding: 0; margin: 0; font-size: 0.81rem; color: #8ba0c4; line-height: 1.45; }
+
+    /* ── Tables ──────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 1.4rem; font-size: 0.9rem; }
+    th { text-align: left; padding: 0.55rem 0.9rem; background: var(--surface2);
+         color: var(--bright); border-bottom: 2px solid var(--border); font-weight: 600; }
+    td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:hover td { background: var(--surface); }
+    td code { font-size: 0.78rem; }
+
+    /* ── Profile badges ──────────────────────────────────────── */
+    .profiles { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.8rem 0 1.2rem; }
+    .pbadge {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 0.28rem 0.85rem;
+      font-size: 0.8rem; color: var(--text-dim); font-family: monospace;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-dev  { background: var(--green); }
+    .dot-prod { background: var(--accent3); }
+    .dot-test { background: var(--purple); }
+
+    /* ── Quiz ────────────────────────────────────────────────── */
+    .quiz { margin-top: 2.5rem; border-top: 1px dashed var(--border); padding-top: 1.4rem; }
+    .quiz-label { font-size: 0.73rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent3); font-weight: 700; margin-bottom: 1.2rem; }
+    .quiz-item { margin-bottom: 1.4rem; }
+    .quiz-q { font-weight: 600; color: var(--bright); margin-bottom: 0.5rem; line-height: 1.5; }
+    .reveal-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--accent);
+      border-radius: 4px; padding: 0.28rem 0.75rem; font-size: 0.78rem; cursor: pointer;
+      font-family: inherit; letter-spacing: 0.3px;
+    }
+    .reveal-btn:hover { background: var(--border); }
+    .answer {
+      display: none; margin-top: 0.55rem;
+      background: var(--code-bg); border-left: 3px solid var(--accent2);
+      padding: 0.7rem 1rem; border-radius: 0 4px 4px 0;
+      font-size: 0.88rem; line-height: 1.65;
+    }
+    .answer.open { display: block; }
+    .answer p:last-child { margin-bottom: 0; }
+
+    /* ── Section wrapper ─────────────────────────────────────── */
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.8rem 2rem 1.4rem; margin-bottom: 2.5rem; }
+    .section > h2:first-child { margin-top: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ PAGE HEADER -->
+<header class="page-header">
+  <h1>Spring Boot Task Tracker</h1>
+  <p class="sub">Production-realistic REST API — Design Document &amp; Study Guide</p>
+  <div>
+    <span class="chip a">Spring Boot 4.0</span>
+    <span class="chip a">Spring Security + JWT</span>
+    <span class="chip g">PostgreSQL · H2</span>
+    <span class="chip g">Flyway</span>
+    <span class="chip y">Maven</span>
+    <span class="chip y">Lombok</span>
+    <span class="chip">Java 21</span>
+    <span class="chip">Section 0 — Design</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ TOC -->
+<nav class="toc">
+  <div class="toc-title">Contents — Design Document</div>
+  <ol>
+    <li><a href="#domain">Domain Choice &amp; Justification</a></li>
+    <li><a href="#arch">System Architecture</a></li>
+    <li><a href="#packages">Package Structure</a></li>
+    <li><a href="#tech">Technology Justifications</a></li>
+    <li><a href="#domain-model">Domain Model &amp; Entity Relationships</a></li>
+    <li><a href="#profiles">Spring Profile Strategy</a></li>
+    <li><a href="#docker">Docker Compose Strategy</a></li>
+    <li><a href="#security-arch">Security Architecture (JWT)</a></li>
+    <li><a href="#roadmap">Build Roadmap</a></li>
+    <li><a href="#quiz">Quiz</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 1 -->
+<div class="section" id="domain">
+  <h2>01 — Domain Choice &amp; Justification</h2>
+
+  <p>
+    The domain is a <strong>Task Tracker</strong> — users belong to projects, projects contain tasks,
+    tasks have comments. Not a Todo app (too trivial — one entity, no relationships) and not
+    e-commerce (too many concepts: inventory, payments, SKUs). A task tracker hits the sweet spot:
+  </p>
+
+  <table>
+    <thead><tr><th>Requirement</th><th>How This Domain Satisfies It</th></tr></thead>
+    <tbody>
+      <tr><td>Multiple JPA relationship types</td><td>ManyToOne, OneToMany, ManyToMany (project membership) all appear naturally</td></tr>
+      <tr><td>Role-based authorization</td><td>ADMIN / MANAGER / MEMBER roles map to real access rules without being contrived</td></tr>
+      <tr><td>Meaningful validation</td><td>Due dates, status transitions (can't reopen a CANCELLED task), priority enum, required fields</td></tr>
+      <tr><td>Pagination &amp; filtering</td><td>Tasks per project, filter by assignee / priority / status — realistic query patterns</td></tr>
+      <tr><td>Audit trail</td><td><code>createdAt</code> / <code>updatedAt</code> on every entity; who-reported-vs-who-assigned distinction</td></tr>
+      <tr><td>React-ready</td><td>Board-style UIs (Kanban) are the canonical React showcase — the frontend story writes itself</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    The name we'll use throughout: <strong>TaskFlow</strong>. The base package is
+    <code>com.example.taskflow</code>, but we'll rename <code>demo3</code> in Module 1.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 2 -->
+<div class="section" id="arch">
+  <h2>02 — System Architecture</h2>
+
+  <p>
+    A single Spring Boot process. No microservices — for a learning project that exercises every
+    layer of the framework, a monolith is strictly better. The layered architecture enforces the
+    same discipline as a service boundary but without the networking overhead and distributed-systems
+    noise.
+  </p>
+
+  <div class="diagram">
+<pre>
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                   HTTP Client  (curl · Postman · React)                  │
+  └──────────────────────────────────┬───────────────────────────────────────┘
+                                     │  JSON over HTTP/1.1
+                                     ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                     Spring Security Filter Chain                         │
+  │                                                                          │
+  │   CorsFilter  →  JwtAuthenticationFilter  →  ExceptionTranslationFilter  │
+  │                        │                                                 │
+  │                        └─ extract Bearer token                           │
+  │                           validate signature + expiry                    │
+  │                           load UserDetails (from JWT claims)             │
+  │                           set SecurityContextHolder                      │
+  └──────────────────────────────────┬───────────────────────────────────────┘
+                                     │
+                                     ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  web/  (Presentation Layer)                                              │
+  │                                                                          │
+  │  AuthController        ProjectController        TaskController           │
+  │  POST /api/auth/**     /api/projects/**          /api/projects/{id}/tasks│
+  │                        CommentController         UserController          │
+  │                                                                          │
+  │  ← @Valid on request DTOs    @PreAuthorize on methods →                  │
+  └──────────┬─────────────────────────┬────────────────────────┬────────────┘
+             │                         │                        │
+             ▼                         ▼                        ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  service/  (Business Logic)                                              │
+  │                                                                          │
+  │  AuthService     ProjectService     TaskService     UserService          │
+  │                                                                          │
+  │  @Transactional lives here — nothing above this layer owns a tx          │
+  │  All business rule violations throw domain exceptions here               │
+  └──────────┬─────────────────────────┬────────────────────────┬────────────┘
+             │                         │                        │
+             ▼                         ▼                        ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  repository/  (Data Access)                                              │
+  │                                                                          │
+  │  UserRepository   ProjectRepository   TaskRepository   CommentRepository │
+  │  extends JpaRepository<T, UUID>                                          │
+  │  Custom JPQL / @Query for complex lookups                                │
+  └──────────────────────────────────┬───────────────────────────────────────┘
+                                     │
+                           Hibernate ORM / JPA
+                                     │
+              ┌──────────────────────┴─────────────────────┐
+              │                                             │
+              ▼                                             ▼
+  ┌───────────────────────────┐             ┌──────────────────────────────┐
+  │  H2 In-Memory             │             │  PostgreSQL 16 (Docker)       │
+  │  profile: dev             │             │  profile: prod               │
+  │  DDL: create-drop         │             │  DDL: validate               │
+  │  H2 console on /h2-console│             │  Flyway runs on startup       │
+  └───────────────────────────┘             └──────────────────────────────┘
+</pre>
+  </div>
+
+  <h3>Why a Strict Three-Layer Architecture?</h3>
+  <p>
+    The <em>controller → service → repository</em> split isn't just textbook ideology — it encodes
+    real constraints. Controllers know about HTTP and JSON, services know about transactions and
+    business rules, repositories know about SQL. When you violate this (a controller calling a
+    repository directly, a service returning <code>HttpStatus</code>) you get coupling that makes
+    testing painful and refactoring dangerous. The rule of thumb: <strong>if you'd have to spin up
+    a servlet container to test it, it belongs in a controller; if you'd have to mock a
+    <code>Connection</code>, it belongs in a repository.</strong>
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 3 -->
+<div class="section" id="packages">
+  <h2>03 — Package Structure</h2>
+
+  <div class="diagram">
+<pre>
+  src/main/java/com/example/taskflow/
+  │
+  ├── TaskFlowApplication.java          ← @SpringBootApplication entry point
+  │
+  ├── config/                           ← Spring configuration classes
+  │   ├── SecurityConfig.java           ← SecurityFilterChain bean
+  │   ├── JwtConfig.java                ← JWT properties (@ConfigurationProperties)
+  │   └── OpenApiConfig.java            ← SpringDoc / Swagger UI (optional)
+  │
+  ├── domain/                           ← JPA entities (pure domain objects)
+  │   ├── User.java
+  │   ├── Project.java
+  │   ├── Task.java
+  │   ├── Comment.java
+  │   ├── Role.java                     ← enum: ADMIN, MANAGER, MEMBER
+  │   ├── TaskStatus.java               ← enum: TODO, IN_PROGRESS, IN_REVIEW, DONE, CANCELLED
+  │   └── Priority.java                 ← enum: LOW, MEDIUM, HIGH, CRITICAL
+  │
+  ├── repository/                       ← Spring Data JPA interfaces
+  │   ├── UserRepository.java
+  │   ├── ProjectRepository.java
+  │   ├── TaskRepository.java
+  │   └── CommentRepository.java
+  │
+  ├── service/                          ← Transactional business logic
+  │   ├── AuthService.java
+  │   ├── ProjectService.java
+  │   ├── TaskService.java
+  │   ├── CommentService.java
+  │   └── UserService.java
+  │
+  ├── web/                              ← REST controllers + DTOs
+  │   ├── AuthController.java
+  │   ├── ProjectController.java
+  │   ├── TaskController.java
+  │   ├── CommentController.java
+  │   ├── UserController.java
+  │   ├── dto/                          ← Request and Response records
+  │   │   ├── LoginRequest.java
+  │   │   ├── RegisterRequest.java
+  │   │   ├── AuthResponse.java
+  │   │   ├── ProjectRequest.java
+  │   │   ├── ProjectResponse.java
+  │   │   ├── TaskRequest.java
+  │   │   ├── TaskResponse.java
+  │   │   └── ...
+  │   └── mapper/                       ← Entity ↔ DTO mapping (MapStruct or manual)
+  │       ├── ProjectMapper.java
+  │       └── TaskMapper.java
+  │
+  ├── security/                         ← Spring Security integration
+  │   ├── JwtService.java               ← token generation + validation
+  │   ├── JwtAuthenticationFilter.java  ← OncePerRequestFilter
+  │   └── UserDetailsServiceImpl.java   ← loads User by email
+  │
+  └── exception/                        ← Custom exceptions + global handler
+      ├── ResourceNotFoundException.java
+      ├── ForbiddenException.java
+      ├── ConflictException.java
+      └── GlobalExceptionHandler.java   ← @RestControllerAdvice
+
+  src/main/resources/
+  ├── application.properties            ← shared (app name, port, JPA base settings)
+  ├── application-dev.properties        ← H2, DDL create-drop, debug logging
+  └── application-prod.properties       ← PostgreSQL via env vars, Flyway, validate
+
+  src/main/resources/db/migration/      ← Flyway migration scripts
+  ├── V1__create_users.sql
+  ├── V2__create_projects.sql
+  ├── V3__create_tasks.sql
+  └── V4__create_comments.sql
+
+  src/test/java/com/example/taskflow/
+  ├── service/                          ← Pure unit tests (no Spring context)
+  │   └── TaskServiceTest.java
+  ├── repository/                       ← @DataJpaTest (slice, no web layer)
+  │   └── TaskRepositoryTest.java
+  └── web/                              ← @WebMvcTest or full integration tests
+      ├── TaskControllerTest.java
+      └── integration/
+          └── TaskFlowIntegrationTest.java  ← @SpringBootTest + Testcontainers
+</pre>
+  </div>
+
+  <div class="callout warn">
+    <div class="ct">Package-by-Layer vs Package-by-Feature</div>
+    <p>
+      This project uses <strong>package-by-layer</strong> (<code>domain/</code>, <code>service/</code>,
+      <code>web/</code>) rather than package-by-feature (<code>project/</code> containing its own
+      entity + service + controller). For a learning project this is intentional — it makes the
+      architectural boundaries explicit and obvious. In a real microservices codebase you'd almost
+      certainly go package-by-feature or you'd already be splitting into separate services. Both
+      approaches are valid; the choice is about where you put friction.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 4 -->
+<div class="section" id="tech">
+  <h2>04 — Technology Justifications</h2>
+
+  <h3>Maven over Gradle</h3>
+  <p>
+    Gradle is more powerful and faster for large multi-module builds. Maven wins here because
+    the POM is <strong>declarative XML</strong> — every Spring Boot tutorial, Stack Overflow answer,
+    and enterprise codebase from the last 15 years uses Maven. Reading a Gradle build requires
+    knowing Groovy/Kotlin DSL; a POM is just data. When you're learning Spring, you don't want
+    the build tool competing for your attention.
+  </p>
+
+  <h3>Spring Boot 4.0</h3>
+  <p>
+    Spring Boot 4.0 is built on Spring Framework 7 and <strong>requires Java 21</strong>.
+    Notable implications for this project:
+  </p>
+  <ul>
+    <li>All imports are <code>jakarta.*</code> (not <code>javax.*</code>) — Jakarta EE 11</li>
+    <li><code>spring-boot-starter-webmvc</code> (not <code>spring-boot-starter-web</code>) — renamed in Boot 4.x</li>
+    <li>Virtual threads (Project Loom) are first-class via <code>spring.threads.virtual.enabled=true</code></li>
+    <li>Bean Background Initialization improves startup time significantly</li>
+  </ul>
+  <div class="callout danger">
+    <div class="ct">Action Required</div>
+    <p>
+      The generated POM has <code>&lt;java.version&gt;17&lt;/java.version&gt;</code>. Spring Boot 4.0
+      requires Java 21. We'll fix this in Module 1 along with renaming the artifact and adding the
+      remaining dependencies (H2, PostgreSQL, Security, JWT, Flyway, Validation).
+    </p>
+  </div>
+
+  <h3>H2 (dev) + PostgreSQL (prod)</h3>
+  <p>
+    H2 lets you run the entire app with <code>./mvnw spring-boot:run</code> — no Docker, no setup,
+    no state. Every developer gets a clean slate on each restart. PostgreSQL in prod is
+    non-negotiable because H2's SQL dialect diverges enough from Postgres that it masks bugs
+    (window functions, JSON operators, generated columns). The profile split enforces this gap
+    is explicit and not accidentally bridged.
+  </p>
+
+  <h3>Flyway over Liquibase</h3>
+  <p>
+    Liquibase is more powerful (supports rollbacks, generates diff reports). Flyway wins because
+    migrations are <strong>plain SQL</strong> — you write <code>CREATE TABLE</code>, not
+    <code>&lt;createTable&gt;</code> XML. When something goes wrong in prod you're already looking
+    at familiar SQL, not a tool-specific DSL. Flyway's conventions (sequential version numbers,
+    checksums on applied migrations, <code>flyway_schema_history</code> table) are also easy to
+    reason about.
+  </p>
+
+  <h3>JWT (JJWT library)</h3>
+  <p>
+    <strong>JJWT</strong> (<code>io.jsonwebtoken</code>) is the de facto standard for JWT in the
+    Java ecosystem — well-maintained, Spring-agnostic, and the API is straightforward. We use
+    stateless JWTs (no session state, no Redis, no sticky sessions) because:
+  </p>
+  <ul>
+    <li>Horizontally scalable without shared session storage</li>
+    <li>Self-contained — the server can validate a token without a DB lookup on every request</li>
+    <li>Teaches the core concepts of claims, signatures, and expiry without magic</li>
+  </ul>
+  <p>
+    The tradeoff: JWTs can't be revoked before expiry without extra infrastructure (a token
+    denylist, usually Redis). For this learning lab that's acceptable; in prod you'd want short
+    expiry + refresh tokens.
+  </p>
+
+  <h3>Lombok</h3>
+  <p>
+    Eliminates boilerplate (<code>@Getter</code>, <code>@Builder</code>, <code>@RequiredArgsConstructor</code>)
+    at compile time via annotation processing. The risk: IDE support occasionally breaks after
+    upgrades, and <code>@Data</code> on JPA entities is a trap (generates <code>equals/hashCode</code>
+    based on all fields, which breaks when entities are proxied or partially loaded). Rule:
+    <strong>never use <code>@Data</code> on a JPA entity</strong> — use explicit
+    <code>@Getter @Setter</code> and a hand-written (or <code>@NaturalId</code>-based)
+    <code>equals/hashCode</code>.
+  </p>
+
+  <h3>Dependency Summary</h3>
+  <table>
+    <thead><tr><th>Dependency</th><th>Scope</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>spring-boot-starter-webmvc</code></td><td>compile</td><td>DispatcherServlet, Jackson, validation wire-up</td></tr>
+      <tr><td><code>spring-boot-starter-data-jpa</code></td><td>compile</td><td>Hibernate, JPA, Spring Data repositories</td></tr>
+      <tr><td><code>spring-boot-starter-security</code></td><td>compile</td><td>Security filter chain, context holder</td></tr>
+      <tr><td><code>spring-boot-starter-validation</code></td><td>compile</td><td>Bean Validation 3.0 (<code>@NotBlank</code>, <code>@Valid</code>)</td></tr>
+      <tr><td><code>spring-boot-starter-actuator</code></td><td>compile</td><td>Health, metrics, info endpoints</td></tr>
+      <tr><td><code>io.jsonwebtoken:jjwt-api/impl/jackson</code></td><td>compile</td><td>JWT generation + validation</td></tr>
+      <tr><td><code>org.flywaydb:flyway-core</code></td><td>compile</td><td>Schema migrations (runs on startup)</td></tr>
+      <tr><td><code>org.flywaydb:flyway-database-postgresql</code></td><td>compile</td><td>Flyway PostgreSQL dialect support</td></tr>
+      <tr><td><code>com.h2database:h2</code></td><td>runtime</td><td>In-memory DB for dev profile</td></tr>
+      <tr><td><code>org.postgresql:postgresql</code></td><td>runtime</td><td>JDBC driver for prod profile</td></tr>
+      <tr><td><code>org.projectlombok:lombok</code></td><td>optional</td><td>Compile-time code generation</td></tr>
+      <tr><td><code>spring-boot-starter-test</code></td><td>test</td><td>JUnit 5, Mockito, MockMvc, AssertJ</td></tr>
+      <tr><td><code>org.testcontainers:postgresql</code></td><td>test</td><td>Real PostgreSQL container in integration tests</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 5 -->
+<div class="section" id="domain-model">
+  <h2>05 — Domain Model &amp; Entity Relationships</h2>
+
+  <h3>Entity-Relationship Diagram</h3>
+
+  <div class="diagram">
+<pre>
+   ┌───────────────────────────┐
+   │  User                     │
+   │───────────────────────────│
+   │  id           UUID  PK    │
+   │  email        VARCHAR  UQ │
+   │  display_name VARCHAR     │
+   │  password_hash VARCHAR     │
+   │  role         VARCHAR      │  ← ADMIN | MANAGER | MEMBER
+   │  created_at   TIMESTAMPTZ │
+   │  updated_at   TIMESTAMPTZ │
+   └──────┬──────────────┬─────┘
+          │  owns         │  assignee / reporter
+          │ (1..*)        │ (0..*)
+          ▼               ▼
+   ┌───────────────────────────┐     project_members
+   │  Project                  │◄────────────────────── User (*)
+   │───────────────────────────│    (join table)
+   │  id           UUID  PK    │
+   │  name         VARCHAR     │
+   │  description  TEXT        │
+   │  status       VARCHAR     │  ← ACTIVE | ARCHIVED
+   │  owner_id     UUID  FK    │──► User
+   │  created_at   TIMESTAMPTZ │
+   │  updated_at   TIMESTAMPTZ │
+   └──────────────┬────────────┘
+                  │  has (1..*)
+                  ▼
+   ┌───────────────────────────┐
+   │  Task                     │
+   │───────────────────────────│
+   │  id           UUID  PK    │
+   │  title        VARCHAR     │
+   │  description  TEXT        │
+   │  status       VARCHAR     │  ← TODO|IN_PROGRESS|IN_REVIEW|DONE|CANCELLED
+   │  priority     VARCHAR     │  ← LOW|MEDIUM|HIGH|CRITICAL
+   │  due_date     DATE        │
+   │  project_id   UUID  FK    │──► Project
+   │  assignee_id  UUID  FK    │──► User (nullable)
+   │  reporter_id  UUID  FK    │──► User
+   │  created_at   TIMESTAMPTZ │
+   │  updated_at   TIMESTAMPTZ │
+   └──────────────┬────────────┘
+                  │  has (0..*)
+                  ▼
+   ┌───────────────────────────┐
+   │  Comment                  │
+   │───────────────────────────│
+   │  id           UUID  PK    │
+   │  body         TEXT        │
+   │  task_id      UUID  FK    │──► Task
+   │  author_id    UUID  FK    │──► User
+   │  created_at   TIMESTAMPTZ │
+   │  updated_at   TIMESTAMPTZ │
+   └───────────────────────────┘
+</pre>
+  </div>
+
+  <h3>Relationship Decisions</h3>
+
+  <h4>Why UUID primary keys, not Long?</h4>
+  <p>
+    UUIDs prevent ID enumeration attacks (<code>GET /tasks/1</code>, <code>/tasks/2</code> …),
+    work in distributed systems where multiple nodes generate IDs, and are compatible with
+    client-side ID generation (useful for offline-first apps). The tradeoff: 16 bytes vs 8 bytes,
+    and index fragmentation is slightly worse. For this scale: irrelevant. Use
+    <code>UUID.randomUUID()</code> and annotate with <code>@GeneratedValue(strategy = GenerationType.UUID)</code>
+    (native JPA 3.1+ support — no more custom generators).
+  </p>
+
+  <h4>Why separate <code>reporter</code> and <code>assignee</code>?</h4>
+  <p>
+    They're different roles. The person who created the ticket isn't always the one working on it.
+    Having both lets you implement "my reported tasks" and "my assigned tasks" views independently,
+    and it's a real query pattern you'll need to practice: <em>find all tasks where reporter = me OR
+    assignee = me</em>.
+  </p>
+
+  <h4>Why a join table for Project members?</h4>
+  <p>
+    Users belong to many projects; projects have many members. The join table
+    <code>project_members (project_id, user_id)</code> is the correct JPA
+    <code>@ManyToMany</code> pattern. If you later need metadata on the relationship
+    (e.g., <em>when</em> the user joined, their role within the project), you promote
+    the join table to a first-class entity (<code>ProjectMembership</code>) — a common
+    real-world evolution. We'll model it simply for now.
+  </p>
+
+  <h4>Soft delete strategy</h4>
+  <p>
+    We won't implement soft deletes in this project. Soft delete (adding <code>deleted_at</code>
+    and filtering every query) is a trap that leaks complexity everywhere and is usually the
+    wrong solution — proper audit logging, event sourcing, or a separate "archived" state are
+    better approaches for most domains. The <code>ARCHIVED</code> project status already handles
+    the main use case.
+  </p>
+
+  <h3>Role Authorization Matrix</h3>
+  <table>
+    <thead><tr><th>Action</th><th>ADMIN</th><th>MANAGER</th><th>MEMBER</th></tr></thead>
+    <tbody>
+      <tr><td>Create / delete any user</td><td>✓</td><td>✗</td><td>✗</td></tr>
+      <tr><td>Create project</td><td>✓</td><td>✓</td><td>✗</td></tr>
+      <tr><td>Archive / delete project</td><td>✓</td><td>owner only</td><td>✗</td></tr>
+      <tr><td>Add / remove project members</td><td>✓</td><td>owner only</td><td>✗</td></tr>
+      <tr><td>Create task in project</td><td>✓</td><td>member</td><td>member</td></tr>
+      <tr><td>Assign task to user</td><td>✓</td><td>member</td><td>✗</td></tr>
+      <tr><td>Update task status</td><td>✓</td><td>member</td><td>assignee only</td></tr>
+      <tr><td>Delete task</td><td>✓</td><td>reporter only</td><td>✗</td></tr>
+      <tr><td>Add comment</td><td>✓</td><td>member</td><td>member</td></tr>
+      <tr><td>Delete comment</td><td>✓</td><td>author only</td><td>author only</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="ct">Design Note</div>
+    <p>
+      "member" in the table above means the user is in the project's member list. This requires
+      custom <code>@PreAuthorize</code> expressions using a <code>ProjectSecurityService</code>
+      bean — one of the more interesting Spring Security patterns we'll implement in Module 5.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 6 -->
+<div class="section" id="profiles">
+  <h2>06 — Spring Profile Strategy</h2>
+
+  <p>
+    Spring profiles are not environments — they're <em>configuration overlays</em>. The base
+    <code>application.properties</code> holds settings that never vary; profiles hold things that
+    do. The merge order is: base → active profile(s) → environment variables. Environment variables
+    always win. This is the 12-Factor App model.
+  </p>
+
+  <div class="profiles">
+    <span class="pbadge"><span class="dot dot-dev"></span>dev (default)</span>
+    <span class="pbadge"><span class="dot dot-prod"></span>prod</span>
+    <span class="pbadge"><span class="dot dot-test"></span>test</span>
+  </div>
+
+  <h3><code>application.properties</code> — shared base</h3>
+  <pre>spring.application.name=taskflow
+server.port=8080
+
+# Never hold JPA transactions open through the web layer (N+1 trap)
+spring.jpa.open-in-view=false
+
+# JPA dialect is inferred from the JDBC URL — don't set it manually
+# spring.jpa.database-platform=...  ← intentionally omitted
+
+# Actuator: expose health and info publicly, everything else requires auth
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=when-authorized
+
+# JWT settings — overridden per profile
+app.jwt.secret=REPLACE_THIS_IN_PROD
+app.jwt.expiry-ms=86400000</pre>
+
+  <h3><code>application-dev.properties</code></h3>
+  <pre>spring.datasource.url=jdbc:h2:mem:taskflow;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+
+spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+spring.flyway.enabled=false
+
+logging.level.com.example.taskflow=DEBUG
+logging.level.org.springframework.security=DEBUG
+
+app.jwt.secret=dev-only-insecure-secret-key-minimum-256-bits-long
+app.jwt.expiry-ms=86400000</pre>
+
+  <h3><code>application-prod.properties</code></h3>
+  <pre>spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USER}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.minimum-idle=5
+
+spring.jpa.hibernate.ddl-auto=validate
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+
+spring.h2.console.enabled=false
+
+logging.level.com.example.taskflow=INFO
+logging.level.org.hibernate.SQL=WARN
+
+app.jwt.secret=${JWT_SECRET}
+app.jwt.expiry-ms=3600000</pre>
+
+  <div class="callout warn">
+    <div class="ct">The open-in-view=false Gotcha</div>
+    <p>
+      Spring Boot defaults <code>spring.jpa.open-in-view</code> to <code>true</code>, which keeps
+      a database connection open for the entire HTTP request lifecycle, allowing lazy loading in the
+      view layer. This is an anti-pattern: it silently causes N+1 queries in serialization,
+      monopolizes connection pool threads during slow client reads, and hides design problems.
+      Set it to <code>false</code> on day one and let the <code>LazyInitializationException</code>s
+      teach you where to add explicit fetches or <code>@Transactional</code>.
+    </p>
+  </div>
+
+  <h3>Activating Profiles</h3>
+  <pre># Development (H2) — default when nothing is specified
+./mvnw spring-boot:run
+
+# Local PostgreSQL via Docker Compose
+SPRING_PROFILES_ACTIVE=prod \
+  DB_URL=jdbc:postgresql://localhost:5432/taskflow \
+  DB_USER=appuser \
+  DB_PASSWORD=changeme \
+  JWT_SECRET=your-256-bit-secret-here \
+  ./mvnw spring-boot:run
+
+# Or set in IDE run configuration — IntelliJ: Edit Configurations → Active profiles: prod</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 7 -->
+<div class="section" id="docker">
+  <h2>07 — Docker Compose Strategy</h2>
+
+  <p>
+    Docker Compose serves one purpose here: spin up PostgreSQL locally so you can run the app
+    against a real database without installing Postgres natively. The app itself does
+    <em>not</em> run in Docker during development — that adds rebuild friction that hurts the
+    feedback loop. Docker Compose is purely infrastructure.
+  </p>
+
+  <h3><code>docker-compose.yml</code> (skeleton)</h3>
+  <pre>services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskflow-db
+    environment:
+      POSTGRES_DB: taskflow
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d taskflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:</pre>
+
+  <h3>Usage</h3>
+  <pre># Start PostgreSQL in the background
+docker compose up -d
+
+# Watch startup and confirm healthy
+docker compose ps
+
+# Connect directly (useful for debugging migrations)
+docker exec -it taskflow-db psql -U appuser -d taskflow
+
+# Stop (data persists in pgdata volume)
+docker compose stop
+
+# Nuke everything including the data volume
+docker compose down -v</pre>
+
+  <div class="callout success">
+    <div class="ct">Why postgres:16-alpine?</div>
+    <p>
+      Alpine-based images are ~80MB vs ~400MB for the full Debian variant. The tradeoff is that
+      Alpine uses <code>musl</code> instead of <code>glibc</code>, which can cause subtle issues
+      with some native extensions — but for a pure JDBC connection that doesn't matter. Always pin
+      a major version (<code>16</code> not <code>latest</code>) so the behavior doesn't silently
+      change when a new major is released.
+    </p>
+  </div>
+
+  <h3>The <code>pgdata</code> Volume Decision</h3>
+  <p>
+    Using a named volume (not a bind mount to <code>./data</code>) keeps Postgres data outside the
+    project directory, preventing it from being accidentally committed, deleted by
+    <code>git clean -fd</code>, or scanned by IDE indexers. The named volume is managed by Docker
+    and survives <code>docker compose down</code> but is cleared by <code>docker compose down -v</code>.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 8 -->
+<div class="section" id="security-arch">
+  <h2>08 — Security Architecture (JWT)</h2>
+
+  <h3>Authentication Flow</h3>
+  <div class="diagram">
+<pre>
+  Client                          Spring Boot
+  ──────                          ───────────
+
+  POST /api/auth/login
+  { email, password }  ─────────► AuthController.login()
+                                   │
+                                   ▼
+                                  AuthService.authenticate()
+                                   │
+                                   ▼
+                                  AuthenticationManager.authenticate(
+                                    UsernamePasswordAuthenticationToken)
+                                   │
+                                   ▼
+                                  UserDetailsServiceImpl.loadUserByUsername(email)
+                                   │  → loads User from DB
+                                   │
+                                   ▼
+                                  BCrypt.matches(rawPassword, storedHash)
+                                   │
+                             ┌─────┴──────┐
+                         FAIL│            │PASS
+                             ▼            ▼
+                      401 Unauthorized   JwtService.generateToken(userDetails)
+                                          │
+                                          ▼
+  { token: "eyJ...",  ◄────────────────  200 OK + AuthResponse
+    expiresIn: 3600 }
+</pre>
+  </div>
+
+  <h3>Request Authorization Flow</h3>
+  <div class="diagram">
+<pre>
+  Client                          JwtAuthenticationFilter           Controller
+  ──────                          ───────────────────────           ──────────
+
+  GET /api/projects
+  Authorization:
+  Bearer eyJ...       ─────────► doFilterInternal()
+                                   │
+                                   ├─ extract token from header
+                                   ├─ JwtService.isTokenValid(token, userDetails)
+                                   │    ├─ verify HMAC signature
+                                   │    └─ check expiry
+                                   │
+                              ┌────┴─────┐
+                          FAIL│          │PASS
+                              ▼          ▼
+                         403 / 401      build UsernamePasswordAuthenticationToken
+                                         │ (principal, null, authorities)
+                                         ▼
+                                        SecurityContextHolder.setContext(auth)
+                                         │
+                                         ▼
+                                        chain.doFilter() ──────────────────► @PreAuthorize
+                                                                              runs, then
+                                                                              Controller method
+</pre>
+  </div>
+
+  <h3>JWT Structure</h3>
+  <pre># Header
+{ "alg": "HS256", "typ": "JWT" }
+
+# Payload (claims)
+{
+  "sub": "user@example.com",     ← subject = email (lookup key)
+  "roles": ["ROLE_MANAGER"],     ← encoded roles
+  "iat": 1716400000,             ← issued at
+  "exp": 1716486400              ← expires at (iat + expiry-ms)
+}
+
+# Signature
+HMACSHA256(base64(header) + "." + base64(payload), secret)</pre>
+
+  <div class="callout warn">
+    <div class="ct">The Role Prefix Convention</div>
+    <p>
+      Spring Security requires role names to be prefixed with <code>ROLE_</code> when using
+      <code>hasRole()</code> — it adds the prefix automatically. If you use
+      <code>hasAuthority("ROLE_ADMIN")</code> you provide it yourself. Store roles in the
+      DB as <code>ADMIN</code> (no prefix), convert to <code>ROLE_ADMIN</code> in
+      <code>UserDetailsServiceImpl</code> when building <code>GrantedAuthority</code> objects.
+      Mixing these conventions is a common source of silent <code>403</code>s.
+    </p>
+  </div>
+
+  <h3>What's Not Included (and Why)</h3>
+  <table>
+    <thead><tr><th>Feature</th><th>Why Excluded</th></tr></thead>
+    <tbody>
+      <tr><td>Refresh tokens</td><td>Adds Redis or DB table for token tracking. Out of scope for Module 5 — mentioned as an extension.</td></tr>
+      <tr><td>OAuth2 / OIDC</td><td>Different module. Spring Security's OAuth2 Resource Server support can replace JWT manually later.</td></tr>
+      <tr><td>CSRF protection</td><td>Stateless APIs with Bearer tokens are immune to CSRF — no session cookie means no attack vector. Disabled explicitly in <code>SecurityConfig</code>.</td></tr>
+      <tr><td>Rate limiting</td><td>Handled at the infra layer (nginx, API gateway). Out of Spring Boot scope.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECTION 9 -->
+<div class="section" id="roadmap">
+  <h2>09 — Build Roadmap</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="num">Module 1</div>
+      <h4>Project Structure &amp; Config</h4>
+      <p>Rename artifact, fix Java 21, add all dependencies, wire up profiles, Docker Compose, config skeletons. App boots on both H2 and PostgreSQL.</p>
+    </div>
+    <div class="card">
+      <div class="num">Module 2</div>
+      <h4>Domain Model &amp; JPA</h4>
+      <p>All four entities with proper relationships, enums, audit fields. Flyway migrations for prod. H2 schema auto-creates in dev.</p>
+    </div>
+    <div class="card">
+      <div class="num">Module 3</div>
+      <h4>Repository &amp; Service</h4>
+      <p>Spring Data repositories, custom JPQL queries, pagination. Service layer with <code>@Transactional</code> boundaries and domain exceptions.</p>
+    </div>
+    <div class="card">
+      <div class="num">Module 4</div>
+      <h4>REST Controllers</h4>
+      <p>DTOs (Java records), <code>@Valid</code> validation, <code>@RestControllerAdvice</code> error handling, consistent API shape, pagination response wrappers.</p>
+    </div>
+    <div class="card">
+      <div class="num">Module 5</div>
+      <h4>Spring Security</h4>
+      <p>JWT filter, <code>UserDetailsService</code>, <code>SecurityConfig</code>, <code>@PreAuthorize</code>, custom project membership security expressions.</p>
+    </div>
+    <div class="card">
+      <div class="num">Module 6</div>
+      <h4>Testing</h4>
+      <p>Unit tests (Mockito), <code>@DataJpaTest</code> slice tests, <code>@WebMvcTest</code> controller tests, full integration tests with Testcontainers + PostgreSQL.</p>
+    </div>
+    <div class="card">
+      <div class="num">Module 7</div>
+      <h4>Observability</h4>
+      <p>Structured JSON logging (Logback), request correlation IDs via MDC, Actuator health + metrics, optional Prometheus scrape endpoint.</p>
+    </div>
+  </div>
+
+  <div class="callout success">
+    <div class="ct">Definition of Done — Per Module</div>
+    <p>
+      A module is done when: (1) <code>./mvnw verify</code> passes, (2) the app starts on
+      both the <code>dev</code> and <code>prod</code> profiles, (3) the study guide section
+      for that module is written. No exceptions for "I'll come back to this."
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ QUIZ -->
+<div class="section">
+  <h2>Quiz — Design Concepts</h2>
+  <div class="quiz">
+    <div class="quiz-label">Questions — reveal answers individually</div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">1. Spring Boot defaults <code>spring.jpa.open-in-view</code> to <code>true</code>. What concrete problem does this cause in a REST API, and why is it particularly hard to notice in development?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>With <code>open-in-view=true</code>, a database connection (or at least a Hibernate Session) is held open for the entire HTTP request, including during Jackson serialization of the response. This means that when Jackson walks the object graph to produce JSON, any <strong>lazily-loaded association</strong> will silently trigger an additional SQL query — you get N+1 queries at serialization time, and nothing in your service layer warned you.</p>
+        <p>It's invisible in development because H2 is in-memory and blazing fast, so 40 extra queries take nanoseconds. In production with PostgreSQL, load, and a connection pool of 10, this manifests as connection pool exhaustion under load. The unit tests pass, the dev app "works," and you only find out in prod.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">2. Why do we store roles in the JWT claims rather than looking them up from the database on every request?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Stateless JWTs are the point — if you hit the database on every request to fetch roles, you've introduced the same latency and single-point-of-failure as a session store without any of its benefits (like immediate revocation).</p>
+        <p>The tradeoff: role changes don't take effect until the JWT expires. If you promote a user to ADMIN, they need to log in again to get a new token with the updated role. This is acceptable for most apps (use a short expiry) but is the correct trade-off to understand. The alternative — a token blacklist — turns your stateless JWT into a quasi-session system.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">3. The <code>project_members</code> join table uses a composite PK of <code>(project_id, user_id)</code>. What would force you to promote this into a full <code>ProjectMembership</code> entity with its own surrogate key?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Any time you need to store data <em>about the relationship itself</em> — not about the project, not about the user, but about their connection. Examples: <strong>when</strong> the user joined, <strong>their role within the project</strong> (different from their global MEMBER/MANAGER role), <strong>invitation status</strong> (INVITED, ACCEPTED, DECLINED), or <strong>whether they've been deactivated</strong> from that specific project.</p>
+        <p>In JPA terms: you can't put extra columns on a <code>@ManyToMany</code> join table without making it a real entity. When that moment comes, you refactor to a <code>@OneToMany</code> from both sides pointing to the <code>ProjectMembership</code> entity.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">4. We chose Flyway over Liquibase. In what scenario would Liquibase be the clearly better choice?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Liquibase wins when you need <strong>rollback support</strong> or <strong>multi-database targeting</strong>. Flyway migrations are SQL-first and therefore database-specific — a <code>CREATE TABLE</code> with PostgreSQL-specific types won't run on MySQL. Liquibase's XML/YAML format is database-agnostic: it describes <em>what</em> to create and generates the appropriate SQL per dialect.</p>
+        <p>The other Liquibase advantage is <strong>diff-based migration generation</strong> — you can point Liquibase at two database states and it generates the migration to get from one to the other. Flyway requires you to write the migration by hand. For teams doing continuous schema iteration, that automation is valuable.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">5. We said "never use <code>@Data</code> on a JPA entity." Explain specifically how <code>@Data</code>'s generated <code>equals</code> and <code>hashCode</code> can cause data loss when used with a <code>Set</code>-based collection.</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p><code>@Data</code> generates <code>equals/hashCode</code> based on all fields. A JPA entity's <code>id</code> field is <code>null</code> before it's persisted (before <code>em.persist()</code> or <code>repository.save()</code> completes). Two new (transient) entities with all other fields equal will be considered equal — and only one will end up in a <code>Set</code>.</p>
+        <p>Worse: if you add a transient entity to a <code>Set</code>, then persist it (now it has an <code>id</code>), its hash code changes. The <code>Set</code> can no longer find it — lookups and <code>contains()</code> break silently. The correct fix: base <code>equals/hashCode</code> on a <strong>stable, non-null business key</strong> (like the UUID, once assigned at construction time via <code>UUID.randomUUID()</code> in a field initializer) or use Hibernate's recommended <code>@NaturalId</code> approach.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">6. Why is CSRF protection explicitly disabled in this API's <code>SecurityConfig</code>, and under what circumstances would you need to re-enable it?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>CSRF attacks exploit the browser's automatic cookie-sending behavior: a malicious site tricks the browser into making a request to your API <em>using the user's session cookie</em>. A stateless JWT API doesn't use cookies for authentication — the <code>Authorization: Bearer ...</code> header is never sent automatically by the browser. Therefore there's nothing to hijack, and CSRF protection provides no benefit.</p>
+        <p>You'd re-enable it if you switched to <strong>cookie-based authentication</strong> (e.g., storing the JWT itself in an <code>HttpOnly</code> cookie for security against XSS, or using Spring Session). The moment the browser automatically sends your auth credential, CSRF becomes a real threat again. This is why the "JWT in HttpOnly cookie" pattern requires CSRF tokens — it combines the XSS resilience of HttpOnly cookies with CSRF protection via double-submit or synchronizer tokens.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODULE 1 — PROJECT STRUCTURE & CONFIGURATION
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<hr style="margin: 3rem 0; border-color: var(--border);" />
+
+<div style="margin-bottom:1rem;">
+  <span class="chip a">Module 1</span>
+  <span class="chip g">Compiles ✓</span>
+  <span class="chip g">Tests Pass ✓</span>
+  <span class="chip">Spring Boot 4.0.6 · Hibernate ORM 7.2.12</span>
+</div>
+
+<div class="section">
+  <h2>Module 1 — Project Structure &amp; Configuration</h2>
+
+  <h3>What Was Built</h3>
+  <p>
+    The scaffolding that every subsequent module builds on. No business logic yet — just the
+    wiring that ensures the app can start cleanly in two different environments (H2 in dev,
+    PostgreSQL in prod) with all infrastructure dependencies in place.
+  </p>
+
+  <table>
+    <thead><tr><th>File</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>pom.xml</code></td><td>Java 21, all prod dependencies, Testcontainers BOM for test</td></tr>
+      <tr><td><code>application.properties</code></td><td>Shared base config — name, port, JPA gotcha fix, Actuator</td></tr>
+      <tr><td><code>application-dev.properties</code></td><td>H2 in-memory, DDL create-drop, H2 console, verbose logging</td></tr>
+      <tr><td><code>application-prod.properties</code></td><td>PostgreSQL from env vars, HikariCP tuning, Flyway enabled</td></tr>
+      <tr><td><code>docker-compose.yml</code></td><td>PostgreSQL 16 + named volume for local prod testing</td></tr>
+      <tr><td><code>TaskFlowApplication.java</code></td><td>Entry point with <code>@ConfigurationPropertiesScan</code></td></tr>
+      <tr><td><code>SecurityConfig.java</code></td><td>Security skeleton — CSRF off, stateless, permit-all until Module 5</td></tr>
+      <tr><td><code>JwtProperties.java</code></td><td>Type-safe binding of <code>app.jwt.*</code> to a Java record</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>How Spring Boot Auto-Configuration Actually Works</h2>
+
+  <p>
+    This is the most important concept to internalize before writing any beans yourself.
+    When Spring Boot sees a dependency on the classpath, it activates matching
+    <strong>auto-configuration classes</strong> — each one is a conditional <code>@Configuration</code>
+    that only fires when certain conditions hold.
+  </p>
+
+  <h3>The Chain for H2 + JPA in the Test Run</h3>
+  <div class="diagram">
+<pre>
+  spring-boot-starter-data-jpa on classpath
+       │
+       ▼
+  HibernateJpaAutoConfiguration fires
+  (@ConditionalOnClass Hibernate + JPA present)
+       │
+       ├─ DataSourceAutoConfiguration fires first
+       │    @ConditionalOnMissingBean(DataSource)  ← no explicit DS configured
+       │    @ConditionalOnEmbeddedDatabase         ← H2 is on the classpath
+       │    → creates embedded H2 DataSource automatically
+       │
+       ├─ HikariCP is the default pool
+       │    HikariDataSource wraps the H2 connection
+       │
+       └─ Hibernate initializes against that DataSource
+            spring.jpa.hibernate.ddl-auto defaults to "create-drop"
+            for embedded databases (when not explicitly set)
+            → schema created, then dropped after tests
+</pre>
+  </div>
+
+  <p>
+    This is why the context test passed without any explicit datasource configuration — the
+    auto-configuration chain figured out what to do from the classpath alone. The relevant
+    source to browse when curious: <code>spring-boot-autoconfigure</code> JAR →
+    <code>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code>.
+    Every auto-configuration class is listed there.
+  </p>
+
+  <div class="callout">
+    <div class="ct">The Condition Hierarchy</div>
+    <p>
+      <code>@ConditionalOnMissingBean</code> is the key pattern. Every auto-configuration bean is
+      wrapped in this condition, meaning: <em>if you define your own bean of this type, mine steps
+      aside</em>. This is how you customize: define your own <code>DataSource</code> bean and
+      Spring Boot's auto-configuration defers to it without any special opt-out code.
+    </p>
+  </div>
+
+  <h3>@SpringBootApplication — What's Actually Inside</h3>
+  <pre><span class="hl-ann">@SpringBootConfiguration</span>   <span class="hl-cmt">// marks this class as the source of bean definitions</span>
+<span class="hl-ann">@EnableAutoConfiguration</span>    <span class="hl-cmt">// activates the auto-config chain described above</span>
+<span class="hl-ann">@ComponentScan</span>              <span class="hl-cmt">// scans com.example.taskflow and all sub-packages</span></pre>
+
+  <p>
+    <code>@SpringBootConfiguration</code> is essentially <code>@Configuration</code> — it tells
+    Spring this class can declare <code>@Bean</code> methods. <code>@EnableAutoConfiguration</code>
+    reads the imports file and conditionally activates all the auto-configs. <code>@ComponentScan</code>
+    without arguments scans from the package of the annotated class — which is why the main class
+    lives at the <em>root</em> of your package hierarchy, not inside a sub-package.
+  </p>
+</div>
+
+<div class="section">
+  <h2>@ConfigurationProperties — Type-Safe Config Binding</h2>
+
+  <p>
+    <code>@Value("${app.jwt.secret}")</code> works but has two problems: it's a string injection
+    (no type coercion, no validation at startup), and it scatters config across every class that
+    uses it. <code>@ConfigurationProperties</code> groups related properties into a single typed
+    object and validates them once at startup.
+  </p>
+
+  <pre><span class="hl-ann">@ConfigurationProperties</span>(prefix = <span class="hl-str">"app.jwt"</span>)
+<span class="hl-kw">public record</span> <span class="hl-type">JwtProperties</span>(<span class="hl-type">String</span> secret, <span class="hl-kw">long</span> expiryMs) {}</pre>
+
+  <p>
+    The <code>prefix = "app.jwt"</code> maps to <code>app.jwt.secret</code> and
+    <code>app.jwt.expiry-ms</code> (Spring's relaxed binding converts <code>expiry-ms</code> →
+    <code>expiryMs</code> automatically — kebab-case in config, camelCase in Java).
+  </p>
+
+  <p>
+    <strong><code>@ConfigurationPropertiesScan</code></strong> on the main class tells Spring Boot
+    to scan for all <code>@ConfigurationProperties</code> classes and register them as beans.
+    Without this (or <code>@EnableConfigurationProperties(JwtProperties.class)</code>), the record
+    would compile fine but never be bound — a silent miss that only shows up when you try to
+    inject it.
+  </p>
+
+  <div class="callout warn">
+    <div class="ct">Records + ConfigurationProperties Gotcha</div>
+    <p>
+      Java records are immutable by design. Spring Boot binds <code>@ConfigurationProperties</code>
+      to records via the <strong>canonical constructor</strong> — every component in the record
+      header maps to a config property. This works in Spring Boot 2.6+ with records declared
+      exactly like the example above. If you add a custom constructor, Boot may get confused
+      about which one to use; stick to the canonical form.
+    </p>
+  </div>
+
+  <h3>Adding Validation Later (Module 5)</h3>
+  <p>
+    When we wire up JWT in Module 5, we'll add <code>@Validated</code> to the record and
+    <code>@NotBlank</code> / <code>@Min</code> on the components. Spring Boot will then
+    validate the bindings at startup and fail fast with a clear error message rather than
+    an NPE at the first request.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Spring Security on the Classpath — What Happens Automatically</h2>
+
+  <p>
+    The moment <code>spring-boot-starter-security</code> appears in the pom, Spring Boot's
+    <code>SecurityAutoConfiguration</code> fires and locks down every endpoint with
+    HTTP Basic authentication. A random password is printed to the console at startup.
+    This surprised the entire Java world when Boot first introduced it — it's a "secure by
+    default" decision that is correct for production but painful for development.
+  </p>
+
+  <p>
+    Our <code>SecurityConfig</code> overrides this default entirely:
+  </p>
+
+  <pre><span class="hl-ann">@Bean</span>
+<span class="hl-kw">public</span> <span class="hl-type">SecurityFilterChain</span> <span class="hl-fn">filterChain</span>(<span class="hl-type">HttpSecurity</span> http) <span class="hl-kw">throws</span> <span class="hl-type">Exception</span> {
+    http
+        .csrf(<span class="hl-type">AbstractHttpConfigurer</span>::disable)         <span class="hl-cmt">// stateless API, no CSRF attack vector</span>
+        .sessionManagement(s -> s
+            .sessionCreationPolicy(<span class="hl-type">SessionCreationPolicy</span>.STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            .anyRequest().permitAll());              <span class="hl-cmt">// replaced by real rules in Module 5</span>
+    <span class="hl-kw">return</span> http.build();
+}</pre>
+
+  <h3>Why <code>@EnableMethodSecurity</code> Now?</h3>
+  <p>
+    This annotation activates Spring Security's AOP-based method-level security
+    (<code>@PreAuthorize</code>, <code>@PostAuthorize</code>, <code>@Secured</code>). Putting it
+    here in Module 1 means all future <code>@PreAuthorize</code> annotations we write in
+    controllers and services will be processed without any additional wiring. Forgetting it and
+    adding it later is a common gotcha — the annotations silently do nothing without it.
+  </p>
+
+  <h3>Why <code>PasswordEncoder</code> and <code>AuthenticationManager</code> Now?</h3>
+  <p>
+    Both are infrastructure beans that will be injected by Module 5's <code>AuthService</code>
+    and <code>UserDetailsServiceImpl</code>. Defining them here, in <code>SecurityConfig</code>,
+    avoids circular dependency issues later. Spring Security's <code>AuthenticationManager</code>
+    is tricky to expose as a bean — <code>config.getAuthenticationManager()</code> is the
+    idiomatic way to do it in Spring Security 6+/7.
+  </p>
+</div>
+
+<div class="section">
+  <h2>HikariCP — The Connection Pool You're Getting for Free</h2>
+
+  <p>
+    Spring Boot defaults to HikariCP as the connection pool since Boot 2.0. It's measurably
+    the fastest JDBC pool in the Java ecosystem. The key settings in
+    <code>application-prod.properties</code>:
+  </p>
+
+  <table>
+    <thead><tr><th>Property</th><th>Value</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>maximum-pool-size</code></td><td>20</td><td>Max concurrent DB connections. Rule of thumb: <code>(2 × CPU cores) + effective spindle count</code>. For a typical 4-core cloud VM, 10–20 is right. More is worse, not better.</td></tr>
+      <tr><td><code>minimum-idle</code></td><td>5</td><td>Connections kept open even when idle. Reduces latency on cold traffic.</td></tr>
+      <tr><td><code>connection-timeout</code></td><td>30000ms</td><td>How long to wait for a connection from the pool before throwing. 30s is the default; keep it.</td></tr>
+      <tr><td><code>idle-timeout</code></td><td>600000ms</td><td>How long an idle connection is kept before being closed. Prevents stale connections.</td></tr>
+      <tr><td><code>max-lifetime</code></td><td>1800000ms</td><td>Hard maximum age for a connection. Forces reconnection before any firewall or DB-side timeout kills it underneath you.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout danger">
+    <div class="ct">Pool Exhaustion — the Invisible Killer</div>
+    <p>
+      If <code>maximum-pool-size</code> is set too high and your DB can't handle that many
+      concurrent connections, <em>the DB falls over</em>, not the app. If it's set too low and
+      a slow query holds a connection while 20 other threads are waiting, you get a wall of
+      <code>HikariPool-1 - Connection is not available, request timed out after 30000ms</code>
+      errors. The correct approach: measure actual concurrent usage under load, then set the
+      pool size to match. Never set it to a high number because "more is safer" — it isn't.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>The POM: What Required a Manual BOM Import and Why</h2>
+
+  <p>
+    The Spring Boot parent POM (<code>spring-boot-starter-parent</code>) inherits from
+    <code>spring-boot-dependencies</code>, which is a "bill of materials" — a
+    <code>&lt;dependencyManagement&gt;</code> section that defines versions for hundreds of
+    libraries. Any dependency you declare without a <code>&lt;version&gt;</code> tag is resolved
+    from this BOM.
+  </p>
+
+  <p>
+    <strong>JJWT</strong> is not in the Spring Boot BOM (it's a third-party library with no
+    official Spring relationship), so we manage it ourselves with <code>${jjwt.version}</code>
+    in the properties block.
+  </p>
+
+  <p>
+    <strong>Testcontainers</strong> turned out not to be managed by the Spring Boot 4.0.6 BOM
+    either, despite Boot 3.1+ introducing <code>spring-boot-testcontainers</code>. The fix is an
+    explicit <code>&lt;dependencyManagement&gt;</code> import of the Testcontainers BOM — this
+    tells Maven to use versions defined in that BOM for all <code>org.testcontainers:*</code>
+    artifacts:
+  </p>
+
+  <pre><span class="hl-cmt">&lt;!-- pom.xml --&gt;</span>
+&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.testcontainers&lt;/groupId&gt;
+            &lt;artifactId&gt;testcontainers-bom&lt;/artifactId&gt;
+            &lt;version&gt;${testcontainers.version}&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;  <span class="hl-cmt">&lt;!-- "import" only valid inside dependencyManagement --&gt;</span>
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;</pre>
+
+  <h3>Flyway 10+ and the Extra Module</h3>
+  <p>
+    Starting with Flyway 10 (which Spring Boot 3.2+ uses), the database-specific SQL support
+    was moved out of <code>flyway-core</code> into separate modules. For PostgreSQL you need
+    <code>flyway-database-postgresql</code> alongside <code>flyway-core</code>. Without it, Flyway
+    will start but refuse to run migrations against PostgreSQL, logging a cryptic error about
+    unsupported database types.
+  </p>
+</div>
+
+<!-- ── Module 1 Quiz ─────────────────────────────────────────────────────── -->
+<div class="section">
+  <h2>Module 1 Quiz</h2>
+  <div class="quiz">
+    <div class="quiz-label">Questions — reveal answers individually</div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">1. The <code>contextLoads()</code> test runs without any <code>@ActiveProfiles("dev")</code> annotation, yet Hibernate initializes against H2 and the test passes. Walk through exactly why — which auto-configurations fire and in what order?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p><strong>Step 1:</strong> No active profile → only <code>application.properties</code> (base) is loaded. No <code>spring.datasource.*</code> properties are defined there.</p>
+        <p><strong>Step 2:</strong> <code>DataSourceAutoConfiguration</code> activates. Its inner class <code>EmbeddedDatabaseConfiguration</code> has <code>@ConditionalOnEmbeddedDatabaseType</code> — H2 is on the classpath, so this condition is true.</p>
+        <p><strong>Step 3:</strong> Spring Boot creates an in-memory H2 <code>DataSource</code> (URL auto-generated, like <code>jdbc:h2:mem:&lt;uuid&gt;</code>), wrapped in HikariCP.</p>
+        <p><strong>Step 4:</strong> <code>HibernateJpaAutoConfiguration</code> fires, picks up the DataSource, initializes the <code>EntityManagerFactory</code> with <code>H2Dialect</code>.</p>
+        <p><strong>Step 5:</strong> <code>spring.jpa.hibernate.ddl-auto</code> is not set in the base config. For embedded databases, Boot defaults it to <code>create-drop</code> — Hibernate creates the schema on start and drops it on close. With no entities, this is a no-op.</p>
+        <p>The result: zero configuration required. This is the power of auto-configuration with a convention-over-configuration default.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">2. What is relaxed binding in Spring Boot property resolution, and what does it mean for a property named <code>app.jwt.expiry-ms</code> in the config file vs <code>expiryMs</code> in the record?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Relaxed binding means Spring normalizes property names before matching them to Java fields. The following all bind to the same <code>expiryMs</code> field:</p>
+        <ul>
+          <li><code>app.jwt.expiry-ms</code> (kebab-case — preferred in .properties files)</li>
+          <li><code>app.jwt.expiryMs</code> (camelCase)</li>
+          <li><code>app.jwt.expiry_ms</code> (underscore)</li>
+          <li><code>APP_JWT_EXPIRY_MS</code> (environment variable form — uppercase + underscores)</li>
+        </ul>
+        <p>This is particularly important for Docker/Kubernetes deployments where environment variables use uppercase and underscores but your config file uses kebab-case. <code>DB_URL</code> in the environment correctly overrides <code>spring.datasource.url</code>... but that's <em>different</em> from relaxed binding — that's Spring's env var property source. The relaxed binding applies within a single property source (e.g., within a <code>.properties</code> file).</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">3. <code>SessionCreationPolicy.STATELESS</code> is set in the security config. What does this prevent Spring Security from doing, and what breaks if you forget it while using JWT?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Without <code>STATELESS</code>, Spring Security's default is <code>IF_REQUIRED</code> — it creates an <code>HttpSession</code> and stores the <code>Authentication</code> object in it. This means:</p>
+        <ul>
+          <li>The <em>first</em> valid JWT request creates a session. Subsequent requests from the same client are served from the session, <em>not from the JWT</em>.</li>
+          <li>If you revoke a JWT (or issue a new one after a password change), the old session keeps the user authenticated.</li>
+          <li>Your API is no longer stateless — it can't be horizontally scaled without sticky sessions or a shared session store.</li>
+        </ul>
+        <p><code>STATELESS</code> tells Spring Security: never create or use an <code>HttpSession</code>. Every request must carry its own credentials. This is the correct mode for Bearer-token APIs.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">4. The <code>PasswordEncoder</code> and <code>AuthenticationManager</code> beans are defined in <code>SecurityConfig</code> rather than in a future <code>AuthService</code>. Why does defining them later in <code>AuthService</code> cause a circular dependency in Spring?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>The circular dependency chain would be:</p>
+        <p><code>AuthService</code> needs <code>AuthenticationManager</code> → <code>AuthenticationManager</code> is built by Spring Security using <code>UserDetailsService</code> → <code>UserDetailsServiceImpl</code> needs <code>UserRepository</code> (fine) but <em>also needs <code>PasswordEncoder</code></em> → and you defined <code>PasswordEncoder</code> in <code>AuthService</code>… which hasn't finished initializing yet.</p>
+        <p>In practice the exact cycle depends on your implementation, but the root issue is that Spring Security's <code>AuthenticationManagerBuilder</code> is itself a Spring bean that gets autowired during security configuration — trying to inject it into an application-level bean that is also part of that configuration creates a circular graph Spring can't resolve.</p>
+        <p>The fix is to define <code>PasswordEncoder</code> and <code>AuthenticationManager</code> in a pure infrastructure config class (<code>SecurityConfig</code>) that has no application-layer dependencies. Everything else depends on it; it depends on nothing.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">5. The <code>docker-compose.yml</code> uses a named volume (<code>pgdata</code>) rather than a bind mount (<code>./data:/var/lib/postgresql/data</code>). What are three concrete reasons to prefer the named volume for local development?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <ul>
+          <li><strong>No accidental commits:</strong> A bind-mounted <code>./data/</code> directory will show up in <code>git status</code>. Even with a good <code>.gitignore</code> entry, new team members may accidentally stage it. Named volumes live entirely in Docker's managed storage and are invisible to git.</li>
+          <li><strong>No IDE indexing:</strong> IntelliJ and VS Code aggressively index project directories. A <code>./data/</code> full of PostgreSQL binary files can cause IDE slowdowns and spurious search results. Named volumes avoid this entirely.</li>
+          <li><strong>No permission issues on macOS/Linux:</strong> PostgreSQL runs as the <code>postgres</code> user inside the container (UID 999 typically). Bind mounts on macOS involve Docker Desktop's VM layer and can produce ownership mismatches that cause Postgres to refuse to start. Named volumes are owned and managed by Docker and don't have this problem.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODULE 2 — DOMAIN MODEL & JPA
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<hr style="margin: 3rem 0; border-color: var(--border);" />
+
+<div style="margin-bottom:1rem;">
+  <span class="chip a">Module 2</span>
+  <span class="chip g">Compiles ✓</span>
+  <span class="chip g">5 Tests Pass ✓</span>
+  <span class="chip">Hibernate ORM 7.2.12 · Spring Data JPA</span>
+</div>
+
+<div class="section">
+  <h2>Module 2 — Domain Model &amp; JPA</h2>
+
+  <h3>What Was Built</h3>
+  <p>
+    The entire persistence layer: four entities, four enums, four Spring Data repositories,
+    four Flyway migration scripts, and a <code>@DataJpaTest</code> that verified the
+    entity model and constraints against H2. No service or controller code yet — just
+    the data model.
+  </p>
+
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>domain/User.java</code></td><td>App user — email, passwordHash, global Role</td></tr>
+      <tr><td><code>domain/Project.java</code></td><td>Groups tasks — owner (ManyToOne), members (ManyToMany)</td></tr>
+      <tr><td><code>domain/Task.java</code></td><td>Work item — project, reporter, assignee (both ManyToOne), status, priority</td></tr>
+      <tr><td><code>domain/Comment.java</code></td><td>Threaded reply on a task — body, task, author</td></tr>
+      <tr><td><code>domain/{Role,TaskStatus,Priority,ProjectStatus}.java</code></td><td>Enums stored as strings in the DB</td></tr>
+      <tr><td><code>repository/*Repository.java</code></td><td>Spring Data interfaces — derived queries, pagination</td></tr>
+      <tr><td><code>db/migration/V1–V4__*.sql</code></td><td>Flyway PostgreSQL scripts — tables, FK constraints, indexes</td></tr>
+      <tr><td><code>repository/UserRepositoryTest.java</code></td><td><code>@DataJpaTest</code> slice — persist, query, constraint verification</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="ct">Spring Boot 4.0 Package Change — Important Discovery</div>
+    <p>
+      Spring Boot 4.0 reorganized its test slice packages entirely. The old
+      <code>org.springframework.boot.test.autoconfigure.orm.jpa.*</code> path no longer exists.
+      New locations:
+    </p>
+    <ul>
+      <li><code>@DataJpaTest</code> → <code>org.springframework.boot.data.jpa.test.autoconfigure</code></li>
+      <li><code>TestEntityManager</code> → <code>org.springframework.boot.jpa.test.autoconfigure</code></li>
+    </ul>
+    <p>
+      Every JPA test, tutorial, and Stack Overflow answer written before Boot 4.0 will have
+      the wrong import. When IDE autocomplete offers the old path and it appears to compile
+      but the class isn't found at runtime — or your IDE says the path doesn't exist — this
+      is why.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>JPA Entity Design Decisions</h2>
+
+  <h3>UUID Primary Keys — and Why They're Set by JPA, Not the DB</h3>
+  <p>
+    <code>@GeneratedValue(strategy = GenerationType.UUID)</code> is the JPA 3.1 standard
+    (Hibernate 6+). Hibernate generates the UUID <em>in-memory, before the INSERT</em> —
+    this is different from a database sequence or <code>SERIAL</code> column, where the ID
+    only exists after the row is written. In-memory generation means:
+  </p>
+  <ul>
+    <li>The entity has a non-null <code>id</code> immediately after <code>em.persist()</code>
+        is called — no extra SELECT needed</li>
+    <li>You can reference the entity by ID before flushing</li>
+    <li>The DB column has no <code>DEFAULT gen_random_uuid()</code> needed — that default
+        in the Flyway script is only for direct SQL inserts that bypass JPA</li>
+  </ul>
+
+  <h3>LAZY Fetching on Every Relationship</h3>
+  <p>
+    Every <code>@ManyToOne</code> in the codebase has <code>fetch = FetchType.LAZY</code>.
+    This is a production-critical decision. The JPA default for <code>@ManyToOne</code> is
+    actually <code>EAGER</code>, which means:
+  </p>
+  <div class="diagram">
+<pre>
+  taskRepository.findById(taskId)
+       │
+       └─ EAGER (bad default)
+           ├─ SELECT * FROM tasks WHERE id = ?
+           ├─ SELECT * FROM projects WHERE id = ?    ← always loaded, even if unused
+           ├─ SELECT * FROM users WHERE id = ?       ← reporter, always loaded
+           └─ SELECT * FROM users WHERE id = ?       ← assignee, always loaded
+
+  taskRepository.findById(taskId)
+       │
+       └─ LAZY (explicit, correct)
+           └─ SELECT * FROM tasks WHERE id = ?
+              (project, reporter, assignee are proxies — only loaded on access)
+</pre>
+  </div>
+  <p>
+    With <code>open-in-view=false</code> and LAZY everywhere, you'll get a
+    <code>LazyInitializationException</code> the moment you access an association outside
+    a transaction. That is the correct behavior — it forces you to either load what you need
+    up front with a <code>JOIN FETCH</code> query, or structure your code so the access
+    happens inside a <code>@Transactional</code> boundary.
+  </p>
+
+  <h3>@Enumerated(EnumType.STRING) — Never ORDINAL</h3>
+  <p>
+    <code>EnumType.ORDINAL</code> stores the zero-based index of the enum constant
+    (<code>TODO = 0</code>, <code>IN_PROGRESS = 1</code>, etc.). The moment you insert a
+    new value between existing ones or reorder the enum, every stored value becomes wrong —
+    silently, with no error. Use <code>STRING</code> always. The storage cost difference
+    (a few bytes per row) is irrelevant.
+  </p>
+
+  <h3>Hibernate 7 Maps Enums to the SQL ENUM Type</h3>
+  <p>
+    When running against H2 in the test suite, the actual DDL Hibernate 7 generated was:
+  </p>
+  <pre>status enum ('ACTIVE','ARCHIVED') not null
+priority enum ('CRITICAL','HIGH','LOW','MEDIUM') not null</pre>
+  <p>
+    This is new behavior in Hibernate 7 — it uses the database's native ENUM type when
+    <code>@Enumerated(EnumType.STRING)</code> is detected. In H2 this is a genuine
+    <code>ENUM</code>-like constraint. For PostgreSQL, Hibernate 7 generates a
+    <code>CHECK</code> constraint on the VARCHAR column rather than creating a PostgreSQL
+    ENUM type (which would require DDL to alter when the enum grows). Our Flyway migrations
+    use <code>VARCHAR(50)</code> which Hibernate's <code>ddl-auto=validate</code> accepts.
+  </p>
+
+  <h3>The equals/hashCode Contract for JPA Entities</h3>
+  <p>
+    Lombok's <code>@Data</code> generates <code>equals/hashCode</code> from all fields.
+    On a JPA entity, this is a correctness bug. The recommended pattern:
+  </p>
+  <pre><span class="hl-ann">@Override</span>
+<span class="hl-kw">public boolean</span> <span class="hl-fn">equals</span>(<span class="hl-type">Object</span> o) {
+    <span class="hl-kw">if</span> (<span class="hl-kw">this</span> == o) <span class="hl-kw">return true</span>;
+    <span class="hl-kw">if</span> (!(o <span class="hl-kw">instanceof</span> <span class="hl-type">User</span> other)) <span class="hl-kw">return false</span>;
+    <span class="hl-kw">return</span> id != <span class="hl-kw">null</span> &amp;&amp; id.equals(other.id); <span class="hl-cmt">// null-safe: two new entities never equal each other</span>
+}
+
+<span class="hl-ann">@Override</span>
+<span class="hl-kw">public int</span> <span class="hl-fn">hashCode</span>() {
+    <span class="hl-kw">return</span> getClass().hashCode(); <span class="hl-cmt">// constant — survives transient→managed transition</span>
+}</pre>
+  <p>
+    The <strong>constant hashCode</strong> is the key insight. If you return
+    <code>id.hashCode()</code> (null before persist), the entity's hash changes when it
+    gets its ID — any <code>Set</code> that held it can no longer find it. A constant
+    hashCode means every instance of the same class maps to the same bucket, which is
+    inefficient for large sets but correct for all lifecycle states. For small domain
+    sets (members of a project) this is perfectly acceptable.
+  </p>
+
+  <h3>The @ManyToMany List vs Set Problem ("Bag Delete")</h3>
+  <p>
+    The <code>Project.members</code> collection uses <code>Set&lt;User&gt;</code>, not
+    <code>List&lt;User&gt;</code>. If you use a List with <code>@ManyToMany</code>,
+    Hibernate treats the collection as a "bag" (unordered, allows duplicates). When you
+    remove a single member from a bag, Hibernate's strategy is:
+  </p>
+  <ol>
+    <li>DELETE all rows from <code>project_members</code> for this project</li>
+    <li>Re-INSERT every remaining member</li>
+  </ol>
+  <p>
+    A project with 100 members, removing one, generates 101 SQL statements.
+    A <code>Set</code> removes exactly 1 row. Use <code>@Builder.Default</code>
+    alongside <code>@Builder</code> to ensure the field initializer
+    (<code>= new HashSet&lt;&gt;()</code>) is respected by the generated builder —
+    without it, <code>@Builder</code> sets the field to <code>null</code>.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Spring Data JPA — How Derived Queries Work</h2>
+  <p>
+    Spring Data parses the method name at startup and generates JPQL (and then SQL) from it.
+    The parsing is keyword-based:
+  </p>
+  <table>
+    <thead><tr><th>Method name</th><th>Generated JPQL</th></tr></thead>
+    <tbody>
+      <tr><td><code>findByEmail(String email)</code></td><td><code>SELECT u FROM User u WHERE u.email = :email</code></td></tr>
+      <tr><td><code>existsByEmail(String email)</code></td><td><code>SELECT count(u.id) > 0 FROM User u WHERE u.email = :email</code></td></tr>
+      <tr><td><code>findByMembersContaining(User user)</code></td><td><code>SELECT p FROM Project p JOIN p.members m WHERE m = :user</code></td></tr>
+      <tr><td><code>findByTaskOrderByCreatedAtAsc(Task task)</code></td><td><code>SELECT c FROM Comment c WHERE c.task = :task ORDER BY c.createdAt ASC</code></td></tr>
+      <tr><td><code>countByProjectAndStatus(Project p, TaskStatus s)</code></td><td><code>SELECT count(t) FROM Task t WHERE t.project = :p AND t.status = :s</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    The method name grammar is: <code>[find|count|exists|delete]By[Property][Operator]</code>
+    with <code>And</code>/<code>Or</code> for conjunctions and <code>OrderBy[Property][Asc|Desc]</code>
+    as a suffix. If the method name grows complex or requires a JOIN FETCH,
+    switch to <code>@Query("SELECT ...")</code> — don't torture the derived query parser
+    beyond 2–3 conditions.
+  </p>
+
+  <h3>Pagination via Pageable</h3>
+  <p>
+    Any repository method that accepts a <code>Pageable</code> parameter automatically
+    generates a <code>LIMIT / OFFSET</code> query and returns a <code>Page&lt;T&gt;</code>
+    with total count metadata. The controller passes in
+    <code>PageRequest.of(page, size, Sort.by("createdAt").descending())</code>. The
+    <code>Page</code> wrapper gives you <code>getTotalElements()</code>,
+    <code>getTotalPages()</code>, <code>hasNext()</code> — everything a pagination UI needs.
+  </p>
+
+  <div class="callout danger">
+    <div class="ct">The Count Query Gotcha with JOIN FETCH and Pagination</div>
+    <p>
+      When Spring Data paginates a query that has a <code>JOIN FETCH</code> (e.g., to
+      eagerly load an association), it has to run a separate COUNT query to compute
+      <code>totalElements</code>. If the main query has a <code>JOIN FETCH</code>, Hibernate
+      cannot derive the count query automatically and throws a runtime exception. The fix:
+      provide an explicit <code>countQuery</code> attribute in the <code>@Query</code>
+      annotation. This is a common "works in dev, breaks in prod" issue because it only
+      manifests when you actually try to paginate.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Flyway Migrations — Structure and Conventions</h2>
+
+  <h3>Naming Convention</h3>
+  <pre>V{version}__{description}.sql
+ │              │
+ │              └─ lowercase with underscores (becomes readable in flyway_schema_history)
+ └─ integer or semver (1, 2, 1.1, 1.2.3)
+
+Examples:
+  V1__create_users.sql
+  V2__create_projects.sql
+  V3__add_task_labels.sql       ← future addition, no entity changes needed
+</pre>
+  <p>
+    The double underscore separates version from description. Single underscore is a typo
+    that Flyway silently ignores — the file just won't execute. Always use double.
+  </p>
+
+  <h3>What Flyway Does at Startup</h3>
+  <div class="diagram">
+<pre>
+  Application starts (prod profile)
+       │
+       ▼
+  Flyway scans classpath:db/migration
+       │
+       ▼
+  Reads flyway_schema_history table  ← created automatically on first run
+       │
+       ├─ V1 already applied? Skip
+       ├─ V2 already applied? Skip
+       ├─ V3 not applied? Run it, record in flyway_schema_history with checksum
+       └─ V4 not applied? Run it, record with checksum
+       │
+       ▼
+  Hibernate ddl-auto=validate
+  ← confirms entity model matches the schema Flyway just created
+</pre>
+  </div>
+
+  <p>
+    The <strong>checksum</strong> is the critical safety mechanism: Flyway hashes the
+    content of every applied migration. If you modify a migration after it's been run
+    (even a comment change), Flyway throws an error on next startup:
+    <em>"Checksum mismatch for migration V1... Expected: -1234, got: 5678"</em>.
+    This prevents the classic mistake of editing a deployed migration to "fix" it.
+    <strong>Never modify an applied migration.</strong> Add a new one instead.
+  </p>
+
+  <h3>TIMESTAMPTZ vs TIMESTAMP</h3>
+  <p>
+    PostgreSQL's <code>TIMESTAMP</code> stores the literal date/time with no timezone
+    information. <code>TIMESTAMPTZ</code> (timestamp with time zone) stores the value
+    in UTC and converts on display based on the session's timezone. Always use
+    <code>TIMESTAMPTZ</code> for audit fields — if you ever deploy across timezones or
+    daylight saving boundaries, <code>TIMESTAMP</code> data becomes ambiguous.
+    Hibernate 7 maps Java's <code>Instant</code> to <code>TIMESTAMP(6) WITH TIME ZONE</code>
+    which maps directly to PostgreSQL's <code>TIMESTAMPTZ</code>.
+  </p>
+</div>
+
+<div class="section">
+  <h2>@DataJpaTest — What the Slice Actually Does</h2>
+
+  <p>
+    <code>@DataJpaTest</code> is a <strong>test slice</strong> — it loads a carefully
+    trimmed Spring context instead of the full application context. What's included:
+  </p>
+  <table>
+    <thead><tr><th>Included</th><th>Not Included</th></tr></thead>
+    <tbody>
+      <tr><td>All <code>@Entity</code> classes</td><td><code>@Service</code>, <code>@Component</code> beans</td></tr>
+      <tr><td>Spring Data repositories</td><td>Web layer (<code>@Controller</code>, filters)</td></tr>
+      <tr><td>JPA/Hibernate configuration</td><td>Spring Security</td></tr>
+      <tr><td><code>TestEntityManager</code></td><td>Actuator</td></tr>
+      <tr><td>Auto-configured H2 in-memory DB</td><td>Your <code>application*.properties</code> (partially overridden)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Each test method runs in a transaction that is <strong>rolled back after the test</strong>
+    automatically. This means test data doesn't leak between tests — no <code>@BeforeEach</code>
+    cleanup needed.
+  </p>
+
+  <h3>Why em.clear() Matters</h3>
+  <pre><span class="hl-ann">@Test</span>
+<span class="hl-kw">void</span> <span class="hl-fn">savesAndRetrievesUserByEmail</span>() {
+    em.persistAndFlush(user);
+    em.clear();  <span class="hl-cmt">// ← without this, findByEmail returns the cached in-memory object</span>
+
+    <span class="hl-kw">var</span> found = userRepository.findByEmail(<span class="hl-str">"alice@example.com"</span>);
+}</pre>
+  <p>
+    Without <code>em.clear()</code>, the JPA <strong>first-level cache</strong>
+    (the persistence context) would return the exact same object you just persisted —
+    from memory, without touching the database. Your assertion would pass even if the
+    column mapping was completely wrong and nothing was actually written. <code>em.clear()</code>
+    detaches all entities, forcing the next repository call to execute a real SELECT.
+    This is the difference between testing your code and testing Hibernate's cache.
+  </p>
+</div>
+
+<!-- ── Module 2 Quiz ─────────────────────────────────────────────────────── -->
+<div class="section">
+  <h2>Module 2 Quiz</h2>
+  <div class="quiz">
+    <div class="quiz-label">Questions — reveal answers individually</div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">1. A colleague opens a ticket: "After we added a new value to the <code>TaskStatus</code> enum, all existing CANCELLED tasks now show as IN_REVIEW." What went wrong, and what setting in the codebase prevents this?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>The colleague was using <code>@Enumerated(EnumType.ORDINAL)</code>. Ordinal storage maps each enum constant to its zero-based position in the Java declaration. If a new value was inserted between <code>IN_REVIEW</code> and <code>DONE</code>, every stored ordinal from that point onward shifted by one — rows that were <code>CANCELLED</code> (was ordinal 4) are now read back as the new value at position 4, which might be <code>IN_REVIEW</code> if the insertion moved things around.</p>
+        <p>The fix is already in this codebase: <code>@Enumerated(EnumType.STRING)</code> on every enum field. With STRING, Hibernate stores the name ("CANCELLED") and reads it back by name — order doesn't matter, new values can be inserted anywhere in the declaration without affecting stored data.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">2. The <code>Project.members</code> field is annotated with both <code>@Builder.Default</code> and initialized to <code>new HashSet&lt;&gt;()</code>. What happens if you remove <code>@Builder.Default</code> while keeping the initializer?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Lombok's <code>@Builder</code> generates a builder that initializes every field to its default Java value (i.e., <code>null</code> for reference types) — it does <em>not</em> use the field initializer expression in the builder path. Without <code>@Builder.Default</code>, any entity created via the builder will have <code>members = null</code>. When Hibernate tries to flush the entity, accessing the null collection (e.g., when cascading or running orphan removal checks) throws a <code>NullPointerException</code> or a Hibernate-level error.</p>
+        <p>The field initializer (<code>= new HashSet&lt;&gt;()</code>) only runs when the object is created via the <em>no-args constructor</em> (used by Hibernate for loading from DB). Builder-created instances bypass field initializers entirely — hence the need for <code>@Builder.Default</code>.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">3. Explain why <code>findByMembersContaining(User user)</code> works as a derived query on a <code>@ManyToMany</code> relationship. What SQL does it produce, and what are the performance implications?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Spring Data detects <code>members</code> as the <code>@ManyToMany</code> collection field in <code>Project</code>. The <code>Containing</code> keyword on a collection generates a <code>JOIN</code> against the join table. The produced SQL is approximately:</p>
+        <pre>SELECT p.*
+FROM projects p
+INNER JOIN project_members pm ON pm.project_id = p.id
+WHERE pm.user_id = ?</pre>
+        <p>Performance implications: this is a simple indexed join (assuming <code>project_members</code> has an index on <code>user_id</code> — our Flyway migration doesn't add one explicitly, though the composite PK <code>(project_id, user_id)</code> only covers lookups by <code>project_id</code> first). For "all projects for user X" queries, you'd want a separate index on <code>project_members(user_id)</code>. Worth adding in a V5 migration once this becomes a hot path.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">4. The entities use Hibernate's <code>@CreationTimestamp</code> and <code>@UpdateTimestamp</code>. What is the alternative Spring Data approach, and when would you prefer it?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Spring Data's approach uses <code>@EntityListeners(AuditingEntityListener.class)</code> on the entity, combined with <code>@CreatedDate</code> / <code>@LastModifiedDate</code> (and optionally <code>@CreatedBy</code> / <code>@LastModifiedBy</code> for user tracking), and <code>@EnableJpaAuditing</code> on a configuration class.</p>
+        <p>Prefer the Spring Data approach when you need:</p>
+        <ul>
+          <li><strong>User tracking</strong>: <code>@CreatedBy</code> / <code>@LastModifiedBy</code> populate from an <code>AuditorAware</code> bean that reads from <code>SecurityContextHolder</code> — giving you "who created/modified this" for free</li>
+          <li><strong>Framework portability</strong>: <code>@CreatedDate</code> is a Spring Data annotation, not Hibernate-specific — it works identically with MongoDB, Cassandra, etc. if you ever change the persistence layer</li>
+        </ul>
+        <p>Prefer Hibernate's <code>@CreationTimestamp</code> / <code>@UpdateTimestamp</code> when you only need timestamps (no user tracking) and want zero extra configuration — no <code>@EnableJpaAuditing</code> or listener class required.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">5. The <code>@DataJpaTest</code> slice does not load <code>application-dev.properties</code> or the Flyway migration scripts. The schema is created entirely by Hibernate from the entity annotations. What does this mean for the relationship between your entities and your Flyway migrations — and what can go wrong if they diverge?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>The <code>@DataJpaTest</code> slice tests that your entity model is <em>internally consistent</em> — it verifies that Hibernate can create a schema from the annotations and that your repository queries work against that schema. It does <em>not</em> test that your Flyway SQL is correct PostgreSQL, or that the Flyway schema matches the entity model.</p>
+        <p>What can diverge:</p>
+        <ul>
+          <li>A column you add to an entity (e.g., <code>archivedAt</code>) but forget to add to the Flyway migration. Tests pass against the H2 schema Hibernate generates. In prod, <code>ddl-auto=validate</code> throws: <em>"Schema-validation: missing column [archived_at] in table [tasks]"</em> — on startup, in production.</li>
+          <li>A column name mismatch — Hibernate's naming strategy generates <code>archived_at</code> from <code>archivedAt</code>, but you wrote <code>archive_date</code> in the Flyway script. Same result.</li>
+        </ul>
+        <p>The complete fix is the Testcontainers integration test in Module 6: <code>@SpringBootTest</code> against a real PostgreSQL container runs the actual Flyway migrations and then starts the app with <code>ddl-auto=validate</code> — catching the divergence before it reaches production.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODULE 3 — REPOSITORY & SERVICE LAYER
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<hr style="margin: 3rem 0; border-color: var(--border);" />
+
+<div style="margin-bottom:1rem;">
+  <span class="chip a">Module 3</span>
+  <span class="chip g">Compiles ✓</span>
+  <span class="chip g">13 Tests Pass ✓</span>
+  <span class="chip">@Transactional · State Machine · EntityGraph · Mockito</span>
+</div>
+
+<div class="section">
+  <h2>Module 3 — Repository &amp; Service Layer</h2>
+
+  <h3>What Was Built</h3>
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>exception/{ResourceNotFound,Forbidden,Conflict,BusinessRule}Exception</code></td><td>Typed exception hierarchy — each maps to a distinct HTTP status in Module 4</td></tr>
+      <tr><td><code>domain/TaskStatus</code> (updated)</td><td>Added <code>canTransitionTo()</code> switch — state machine lives with the state</td></tr>
+      <tr><td><code>service/UserService</code></td><td>findById, findByEmail, paginated findAll</td></tr>
+      <tr><td><code>service/ProjectService</code></td><td>create, archive, addMember, removeMember — enforces owner-is-always-member and owner-cannot-be-removed rules</td></tr>
+      <tr><td><code>service/TaskService</code></td><td>create, assign, unassign, updateStatus (validated), delete</td></tr>
+      <tr><td><code>service/CommentService</code></td><td>create, findByTask, delete (author-only until Module 5)</td></tr>
+      <tr><td><code>repository/*</code> (updated)</td><td>Added <code>@EntityGraph</code> on the three N+1 hotspots identified in Module 2</td></tr>
+      <tr><td><code>service/ProjectServiceTest</code></td><td>Mockito unit tests — create, archive, owner removal guard, not-found</td></tr>
+      <tr><td><code>service/TaskServiceTest</code></td><td>Mockito unit tests — status transitions, terminal states, default values; parameterized</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>@Transactional — The Most Misunderstood Spring Annotation</h2>
+
+  <h3>The Class-Level + Method-Level Override Pattern</h3>
+  <pre><span class="hl-ann">@Service</span>
+<span class="hl-ann">@Transactional</span>(readOnly = <span class="hl-kw">true</span>)   <span class="hl-cmt">// default for every method in the class</span>
+<span class="hl-ann">@RequiredArgsConstructor</span>
+<span class="hl-kw">public class</span> <span class="hl-type">ProjectService</span> {
+
+    <span class="hl-ann">@Transactional</span>                    <span class="hl-cmt">// overrides to readOnly=false for writes</span>
+    <span class="hl-kw">public</span> <span class="hl-type">Project</span> <span class="hl-fn">create</span>(...) { ... }
+
+    <span class="hl-kw">public</span> <span class="hl-type">Project</span> <span class="hl-fn">findById</span>(<span class="hl-type">UUID</span> id) { ... }  <span class="hl-cmt">// inherits readOnly=true</span>
+}</pre>
+
+  <p>
+    <code>readOnly = true</code> is not just a hint — it does real work:
+  </p>
+  <ul>
+    <li><strong>Hibernate skips dirty checking at flush time.</strong> In a read-only transaction, Hibernate doesn't take a snapshot of loaded entities and doesn't compare their current state to that snapshot before the transaction closes. For queries that load dozens of objects, this is a measurable CPU saving.</li>
+    <li><strong>Some JDBC drivers and databases route to a read replica.</strong> Spring's <code>LazyConnectionDataSourceProxy</code> + a read/write split datasource will route <code>readOnly=true</code> transactions to a replica automatically.</li>
+    <li><strong>It documents intent.</strong> A future engineer reading <code>readOnly=true</code> knows immediately: this method must not have side effects. The annotation does what the name says.</li>
+  </ul>
+
+  <h3>How @Transactional Actually Works (AOP Proxy)</h3>
+  <div class="diagram">
+<pre>
+  Controller calls projectService.create(...)
+        │
+        ▼
+  Spring AOP proxy intercepts the call
+        │
+        ├─ opens a transaction (or joins existing)
+        ├─ acquires a DB connection from HikariCP pool
+        │
+        ▼
+  Real ProjectService.create() runs
+        │
+        ├─ projectRepository.save(project)
+        │   └─ Hibernate stages INSERT in the persistence context
+        │
+  Method returns
+        │
+        ▼
+  Proxy resumes
+        │
+        ├─ Hibernate flush: executes staged INSERT against DB
+        ├─ COMMIT
+        └─ connection returned to pool
+</pre>
+  </div>
+
+  <div class="callout danger">
+    <div class="ct">The Self-Invocation Trap</div>
+    <p>
+      Because <code>@Transactional</code> works via a proxy, calling a transactional method
+      <em>from within the same class</em> bypasses the proxy entirely — the annotation is
+      silently ignored. This is the most common <code>@Transactional</code> bug in production:
+    </p>
+    <pre><span class="hl-kw">public class</span> <span class="hl-type">ProjectService</span> {
+    <span class="hl-kw">public void</span> <span class="hl-fn">doSomething</span>() {
+        <span class="hl-kw">this</span>.create(...); <span class="hl-cmt">// ← @Transactional on create() is IGNORED — direct call, not through proxy</span>
+    }
+}</pre>
+    <p>
+      The fix: inject <code>ProjectService</code> into itself (ugly), use
+      <code>ApplicationContext.getBean()</code> (worse), or restructure so the transactional
+      boundary is never crossed internally.
+    </p>
+  </div>
+
+  <h3>Why RuntimeException — Not Checked Exception — Triggers Rollback</h3>
+  <p>
+    Spring's default rollback rule: <strong>roll back on any unchecked exception
+    (<code>RuntimeException</code> or <code>Error</code>), commit on checked exceptions.</strong>
+    This is a deliberate design choice from the early 2000s: checked exceptions were considered
+    "expected, recoverable" situations (e.g., <code>IOException</code> from a file that might not
+    exist) while unchecked exceptions represented programming errors or unrecoverable failures.
+  </p>
+  <p>
+    All four of our exceptions extend <code>RuntimeException</code>, which means any service
+    method that throws them will trigger an automatic rollback — no partial writes left in the DB.
+    If you used checked exceptions, you'd need to explicitly annotate:
+    <code>@Transactional(rollbackFor = SomeCheckedException.class)</code>.
+    The Spring convention is to use unchecked exceptions for application-level errors and let
+    rollback happen automatically.
+  </p>
+</div>
+
+<div class="section">
+  <h2>The Exception Hierarchy — HTTP Status Mapping</h2>
+
+  <p>
+    Each exception class carries implicit semantic meaning that the global error handler
+    (Module 4's <code>GlobalExceptionHandler</code>) will translate to an HTTP status code.
+    The mapping is defined once, centrally:
+  </p>
+  <table>
+    <thead><tr><th>Exception</th><th>HTTP Status</th><th>When to throw</th></tr></thead>
+    <tbody>
+      <tr><td><code>ResourceNotFoundException</code></td><td>404 Not Found</td><td>Entity lookup by ID returns empty</td></tr>
+      <tr><td><code>ForbiddenException</code></td><td>403 Forbidden</td><td>Caller lacks permission for this specific resource</td></tr>
+      <tr><td><code>ConflictException</code></td><td>409 Conflict</td><td>State conflict — email already taken, duplicate name</td></tr>
+      <tr><td><code>BusinessRuleException</code></td><td>422 Unprocessable Entity</td><td>Request is valid JSON but violates a domain invariant (invalid status transition, removing owner)</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    The distinction between <strong>403</strong> and <strong>422</strong> matters:
+    a 403 means "you can't do this" (identity/permission issue);
+    a 422 means "even with permission, this operation doesn't make sense" (domain rule violation).
+    A task status transition from DONE → TODO is always invalid regardless of who's asking —
+    that's a 422, not a 403.
+  </p>
+</div>
+
+<div class="section">
+  <h2>State Machine in the Enum</h2>
+
+  <p>
+    The status transition rules live in <code>TaskStatus</code>, not in <code>TaskService</code>.
+    This is a deliberate choice about where domain logic belongs.
+  </p>
+
+  <pre><span class="hl-kw">public boolean</span> <span class="hl-fn">canTransitionTo</span>(<span class="hl-type">TaskStatus</span> next) {
+    <span class="hl-kw">return switch</span> (<span class="hl-kw">this</span>) {
+        <span class="hl-kw">case</span> TODO        -> <span class="hl-type">Set</span>.of(IN_PROGRESS, CANCELLED).contains(next);
+        <span class="hl-kw">case</span> IN_PROGRESS -> <span class="hl-type">Set</span>.of(IN_REVIEW, TODO, CANCELLED).contains(next);
+        <span class="hl-kw">case</span> IN_REVIEW   -> <span class="hl-type">Set</span>.of(DONE, IN_PROGRESS, CANCELLED).contains(next);
+        <span class="hl-kw">case</span> DONE, CANCELLED -> <span class="hl-kw">false</span>;
+    };
+}</pre>
+
+  <h3>Why a Switch Expression, Not Abstract Methods</h3>
+  <p>
+    The alternative — abstract method per constant with anonymous class bodies — is more
+    object-oriented but has a critical flaw: Java enum constants with anonymous class bodies
+    use a different class per constant, which breaks serialization, reflection-based tooling,
+    and some framework integrations (Jackson, Hibernate). A switch expression keeps the enum
+    as a single concrete class with one flat method. The compiler enforces exhaustiveness on
+    the switch — if you add a new <code>TaskStatus</code> constant and forget to handle it
+    here, the build fails. That's the guarantee you want from a state machine.
+  </p>
+
+  <h3>The Service Calls It</h3>
+  <pre><span class="hl-ann">@Transactional</span>
+<span class="hl-kw">public</span> <span class="hl-type">Task</span> <span class="hl-fn">updateStatus</span>(<span class="hl-type">UUID</span> taskId, <span class="hl-type">TaskStatus</span> newStatus) {
+    <span class="hl-kw">var</span> task = <span class="hl-fn">findById</span>(taskId);
+    <span class="hl-kw">if</span> (!task.getStatus().<span class="hl-fn">canTransitionTo</span>(newStatus)) {
+        <span class="hl-kw">throw new</span> <span class="hl-type">BusinessRuleException</span>(
+            <span class="hl-str">"Cannot transition task from %s to %s"</span>.<span class="hl-fn">formatted</span>(task.getStatus(), newStatus));
+    }
+    task.<span class="hl-fn">setStatus</span>(newStatus);
+    <span class="hl-kw">return</span> taskRepository.<span class="hl-fn">save</span>(task);
+}</pre>
+  <p>
+    The service enforces the rule; the enum defines it. If the rule changes, there's exactly
+    one place to update.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Constructor Injection via @RequiredArgsConstructor</h2>
+
+  <p>
+    All four services use field injection via the Lombok-generated constructor:
+  </p>
+  <pre><span class="hl-ann">@Service</span>
+<span class="hl-ann">@RequiredArgsConstructor</span>
+<span class="hl-kw">public class</span> <span class="hl-type">TaskService</span> {
+    <span class="hl-kw">private final</span> <span class="hl-type">TaskRepository</span> taskRepository;
+    <span class="hl-kw">private final</span> <span class="hl-type">ProjectRepository</span> projectRepository;
+    <span class="hl-kw">private final</span> <span class="hl-type">UserRepository</span> userRepository;
+}</pre>
+
+  <p>
+    <code>@RequiredArgsConstructor</code> generates a constructor for all <code>final</code>
+    fields. Spring injects via that constructor. This is superior to <code>@Autowired</code>
+    on fields for three reasons:
+  </p>
+  <ul>
+    <li><strong>Testability:</strong> you can instantiate the class in a plain unit test without a Spring context — just pass mocks to the constructor. <code>@InjectMocks</code> in Mockito does exactly this.</li>
+    <li><strong>Immutability:</strong> <code>final</code> fields cannot be reassigned after construction, which matters for thread safety in singleton beans.</li>
+    <li><strong>Circular dependency detection:</strong> Spring detects circular constructor injection at startup and throws an explicit error. With field injection, it silently creates half-initialized beans at runtime.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>EntityGraph — Applied to the Three Hotspots</h2>
+
+  <p>
+    We identified three N+1 locations in Module 2 and added <code>@EntityGraph</code> to each.
+    The rule applied consistently:
+  </p>
+
+  <table>
+    <thead><tr><th>Repository method</th><th>Attributes fetched</th><th>Why safe</th></tr></thead>
+    <tbody>
+      <tr><td><code>CommentRepository.findByTaskOrderByCreatedAtAsc</code></td><td><code>author</code></td><td>ManyToOne — single JOIN, no LIMIT issue</td></tr>
+      <tr><td><code>TaskRepository.findByProject(project, pageable)</code></td><td><code>assignee, reporter</code></td><td>Both ManyToOne — safe with pagination</td></tr>
+      <tr><td><code>ProjectRepository.findByMembersContaining(user)</code></td><td><code>owner</code></td><td>ManyToOne — safe. <code>members</code> collection intentionally excluded</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="ct">The Pagination + Collection = Memory Sort Trap</div>
+    <p>
+      Adding a <em>collection</em> attribute (OneToMany or ManyToMany) to an <code>@EntityGraph</code>
+      on a paginated query causes Hibernate to log:
+      <br/><code>HHH90003004: firstResult/maxResults specified with collection fetch; applying in memory!</code>
+      <br/>This means Hibernate fetches <em>all matching rows</em> from the DB (ignoring your page limit),
+      loads them into memory, then applies the pagination there. For a table with 100k tasks, asking for
+      page 1 of 20 secretly loads 100k rows. This is why <code>members</code> is not in the
+      <code>ProjectRepository</code> EntityGraph — it's a ManyToMany collection. Load it with a
+      separate query when needed.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Unit Tests with Mockito — No Spring Context</h2>
+
+  <p>
+    The service tests use <code>@ExtendWith(MockitoExtension.class)</code> — this starts
+    Mockito's JUnit 5 extension but does <em>not</em> start Spring. The full context (Hibernate,
+    HikariCP, Security) takes ~1–2 seconds to boot. A pure Mockito test runs in milliseconds.
+    At scale, this difference is decisive: 500 unit tests at 2ms each takes 1 second; the same
+    500 tests as <code>@SpringBootTest</code> takes 15+ minutes.
+  </p>
+
+  <h3>@InjectMocks vs @Autowired</h3>
+  <pre><span class="hl-ann">@Mock</span> <span class="hl-type">TaskRepository</span> taskRepository;      <span class="hl-cmt">// Mockito creates a proxy — no real DB</span>
+<span class="hl-ann">@Mock</span> <span class="hl-type">ProjectRepository</span> projectRepository;
+<span class="hl-ann">@InjectMocks</span> <span class="hl-type">TaskService</span> taskService;       <span class="hl-cmt">// injects the mocks via the Lombok-generated constructor</span></pre>
+
+  <p>
+    <code>@InjectMocks</code> creates a real <code>TaskService</code> instance and injects the
+    mocks. It tries constructor injection first, then setter, then field — our
+    <code>@RequiredArgsConstructor</code> constructor is what it finds. This is the exact same
+    wiring path Spring uses at runtime, which means the test is exercising real code with real
+    logic, just against fake data access.
+  </p>
+
+  <h3>The Parameterized Terminal State Test</h3>
+  <pre><span class="hl-ann">@ParameterizedTest</span>
+<span class="hl-ann">@EnumSource</span>(value = <span class="hl-type">TaskStatus</span>.<span class="hl-kw">class</span>, names = {<span class="hl-str">"DONE"</span>, <span class="hl-str">"CANCELLED"</span>})
+<span class="hl-kw">void</span> <span class="hl-fn">terminalStatuses_rejectAllTransitions</span>(<span class="hl-type">TaskStatus</span> terminal) { ... }</pre>
+
+  <p>
+    This runs the test body twice — once with <code>DONE</code>, once with <code>CANCELLED</code>
+    — and inside it asserts that <em>every</em> possible target status throws a
+    <code>BusinessRuleException</code>. A single test that validates all outbound transitions
+    from both terminal states. When a new terminal state is added to the enum, the
+    <code>@EnumSource(names = ...)</code> list is the one place you update.
+  </p>
+</div>
+
+<!-- ── Module 3 Quiz ─────────────────────────────────────────────────────── -->
+<div class="section">
+  <h2>Module 3 Quiz</h2>
+  <div class="quiz">
+    <div class="quiz-label">Questions — reveal answers individually</div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">1. A service method annotated with <code>@Transactional(readOnly = true)</code> calls <code>entity.setSomeField("value")</code> and returns. Is the change persisted? Why or why not?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p><strong>It depends on the Hibernate flush mode.</strong> With <code>readOnly = true</code>, Spring sets the Hibernate session to <code>FlushMode.MANUAL</code>, which means Hibernate will <em>not</em> automatically flush dirty entities at transaction close. So in practice, the change will <em>not</em> be persisted — Hibernate skips the dirty check entirely.</p>
+        <p>However: if you explicitly call <code>entityManager.flush()</code> inside a <code>readOnly</code> transaction, Hibernate will attempt to flush and the DB driver may throw an error (read-only connection). The behavior is technically "Hibernate won't do it automatically," not "it's physically impossible."</p>
+        <p>The production risk: a developer loads an entity in a <code>readOnly</code> method, mutates it, and the change is lost silently (no exception, no log). This is a footgun — which is why the <code>readOnly = true</code> at class level + explicit <code>@Transactional</code> on write methods makes the intent machine-checkable.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">2. <code>ProjectService.addMember</code> calls <code>project.getMembers().add(user)</code> and then <code>projectRepository.save(project)</code>. But <code>save()</code> on an already-managed entity in a transaction is effectively a no-op — Hibernate will flush the dirty state anyway. So why call <code>save()</code> at all?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>You're right that for a <em>managed</em> entity inside a transaction, Hibernate's dirty checking will pick up the change and generate the INSERT into <code>project_members</code> without an explicit <code>save()</code> call. The explicit <code>save()</code> is defensive and documentary:</p>
+        <ul>
+          <li><strong>Explicit intent:</strong> A reader sees <code>save()</code> and knows a write is happening. Without it, the mutation is implicit and easy to miss in code review.</li>
+          <li><strong>Works outside a transaction too:</strong> If the method were called without a surrounding transaction (which shouldn't happen, but can via tests or misconfiguration), the entity would be detached and Hibernate would throw a <code>DetachedObjectException</code> on flush. Calling <code>save()</code> on a detached entity re-attaches it via <code>merge()</code>.</li>
+          <li><strong>Returns the managed instance:</strong> <code>save()</code> returns the managed entity. Some patterns (especially with Spring Data's <code>@Version</code> optimistic locking) need the returned instance, not the original.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">3. The services use <code>@Transactional</code> but do no authorization checks (beyond a few domain rules). Where will authorization live, and how does it get the currently authenticated user without being passed explicitly?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>Authorization lives in two places in Module 5:</p>
+        <ol>
+          <li><strong>Method-level:</strong> <code>@PreAuthorize</code> annotations on controller or service methods. e.g., <code>@PreAuthorize("hasRole('ADMIN') or @projectSec.isOwner(authentication, #projectId)")</code>. Spring Security evaluates this before the method runs — the method body never executes if the check fails.</li>
+          <li><strong>Programmatic:</strong> When the rule is too complex for SpEL, the service can call <code>SecurityContextHolder.getContext().getAuthentication()</code> to get the currently authenticated principal.</li>
+        </ol>
+        <p>The authenticated user is stored in <code>SecurityContextHolder</code> — a thread-local (or coroutine-scoped) holder that the <code>JwtAuthenticationFilter</code> populates on every request. Any code on the same thread can read it without it being passed as a parameter. This is why service methods don't need a <code>User requestingUser</code> parameter in most cases — they pull the principal from the context when needed.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">4. <code>TaskService.delete()</code> calls <code>existsById()</code> before <code>deleteById()</code>. What race condition exists in this pattern, and what's the correct approach to eliminate it?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>The check-then-act pattern has a TOCTOU (Time-of-Check-to-Time-of-Use) race: between <code>existsById()</code> returning <code>true</code> and <code>deleteById()</code> executing, another thread or process could have deleted the same row. <code>deleteById()</code> would then silently succeed (deleting 0 rows) without notifying the caller that the resource was already gone.</p>
+        <p>The correct approach: skip the existence check and use the return value of the delete operation itself. Spring Data's <code>deleteById</code> throws <code>EmptyResultDataAccessException</code> (or similar) if the entity doesn't exist — or you can use a custom <code>@Query("DELETE FROM Task t WHERE t.id = :id")</code> and check the updated count:</p>
+        <pre>@Modifying
+@Query("DELETE FROM Task t WHERE t.id = :id")
+int deleteByIdReturningCount(@Param("id") UUID id);
+
+// In service:
+if (taskRepository.deleteByIdReturningCount(taskId) == 0) {
+    throw new ResourceNotFoundException("Task", taskId);
+}</pre>
+        <p>This is a single atomic operation — no window for a race condition.</p>
+      </div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-q">5. The <code>TaskStatus</code> switch expression is exhaustive — the compiler enforces that every enum constant has a branch. What happens at runtime if a future developer adds a new status (e.g., <code>BLOCKED</code>) to the enum but forgets to update the switch?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="answer">
+        <p>The code will <strong>fail to compile</strong> — not at runtime, at build time. Java's switch expressions (using <code>-></code> arrow syntax) require exhaustive coverage of all enum constants when there is no <code>default</code> branch. Adding <code>BLOCKED</code> to <code>TaskStatus</code> without adding a <code>case BLOCKED</code> to the switch produces a compile error: <em>"the switch expression does not cover all possible input values."</em></p>
+        <p>This is the key advantage over a classic <code>if/else if</code> chain or a switch statement with a <code>default</code> — the compiler becomes a safety net. The developer <em>must</em> decide what transitions <code>BLOCKED</code> allows before the code can ship. This is the "make illegal states unrepresentable" principle applied to the build toolchain.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════ MODULE 4 ═══════════════════════════ -->
+<div class="module">
+  <div class="module-header">
+    <span class="module-number">04</span>
+    <div>
+      <div class="module-title">REST Controllers, DTOs &amp; Error Handling</div>
+      <div class="module-subtitle">Records as DTOs · ProblemDetail (RFC 7807) · Bean Validation · @RestControllerAdvice · Pageable</div>
+    </div>
+  </div>
+  <div class="module-body">
+
+    <!-- ── CONCEPT 1: Records as DTOs ── -->
+    <div class="concept">
+      <h3 class="concept-title">Java Records as DTOs</h3>
+      <p>A <strong>record</strong> is a special class declaration where the compiler auto-generates the constructor, getters (named after the component), <code>equals</code>, <code>hashCode</code>, and <code>toString</code>. Because all state is declared in the header and there are no setters, records are inherently immutable — making them ideal request/response shapes that should never mutate after construction.</p>
+      <pre><code><span class="c">// Compact. Immutable. Compiler-enforced completeness.</span>
+<span class="kw">public record</span> <span class="cn">UserResponse</span>(
+        UUID id,
+        String email,
+        String displayName,
+        Role role,
+        Instant createdAt
+) {
+    <span class="kw">public static</span> UserResponse <span class="fn">from</span>(User user) {
+        <span class="kw">return new</span> <span class="cn">UserResponse</span>(user.getId(), user.getEmail(),
+                user.getDisplayName(), user.getRole(), user.getCreatedAt());
+    }
+}</code></pre>
+      <p>The static <code>from()</code> factory keeps mapping logic inside the DTO itself — no separate mapper class needed for a project this size. The alternative (MapStruct) generates bytecode at compile time and is worth adding when you have 20+ DTOs or complex nested mappings, but it's overkill here.</p>
+      <div class="callout callout-warn">
+        <strong>Why not Lombok @Value?</strong> <code>@Value</code> generates a final class with an all-args constructor and no setters — functionally similar. But it's still an annotation processor layer on top of a class. Records are a first-class language feature: reflection, pattern matching (<code>instanceof</code> deconstruction), and sealed interface implementations all work cleanly with records but need workarounds with <code>@Value</code>.
+      </div>
+      <div class="callout callout-warn">
+        <strong>Why not use entities directly as responses?</strong> Three reasons. (1) Lazy associations — Jackson serializes getters, which triggers Hibernate to open a connection <em>outside</em> the transaction (we blocked this with <code>open-in-view=false</code>, so it would throw instead). (2) Leaking internals — <code>passwordHash</code>, <code>updatedAt</code>, internal IDs you never want exposed. (3) API stability — if the entity changes shape (column renamed, field moved), the API contract breaks silently without a DTO layer.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 2: Validation ── -->
+    <div class="concept">
+      <h3 class="concept-title">Bean Validation with @Valid</h3>
+      <p>The Jakarta Bean Validation spec (<code>jakarta.validation</code>) defines constraint annotations. Spring MVC activates them when you put <code>@Valid</code> on a <code>@RequestBody</code> parameter. If any constraint fails, Spring throws <code>MethodArgumentNotValidException</code> <em>before</em> your controller method body executes.</p>
+      <pre><code><span class="c">// On the DTO record — constraints live where the shape is defined</span>
+<span class="kw">public record</span> <span class="cn">CreateUserRequest</span>(
+        <span class="at">@Email @NotBlank</span> String email,
+        <span class="at">@NotBlank @Size</span>(min = 2, max = 100) String displayName,
+        <span class="at">@NotBlank @Size</span>(min = 8) String password,
+        Role role   <span class="c">// nullable — defaults to MEMBER in service</span>
+) {}
+
+<span class="c">// In the controller — @Valid triggers the check</span>
+<span class="at">@PostMapping</span>
+<span class="at">@ResponseStatus</span>(HttpStatus.CREATED)
+<span class="kw">public</span> UserResponse <span class="fn">create</span>(<span class="at">@RequestBody @Valid</span> CreateUserRequest req) {
+    <span class="kw">return</span> UserResponse.from(userService.create(...));
+}</code></pre>
+      <p>Key constraints in this project: <code>@NotNull</code> (rejects null), <code>@NotBlank</code> (rejects null AND whitespace-only strings), <code>@Email</code> (RFC 5321 format check), <code>@Size(min, max)</code> (string/collection length).</p>
+      <div class="callout callout-info">
+        <strong>@NotNull vs @NotBlank:</strong> For a String field, <code>@NotNull</code> passes if the value is <code>""</code> (empty string). <code>@NotBlank</code> combines not-null + trimmed length &gt; 0. Always use <code>@NotBlank</code> for user-facing string fields.
+      </div>
+      <div class="callout callout-warn">
+        <strong>@Valid vs @Validated:</strong> <code>@Valid</code> on a method parameter triggers validation of that object. <code>@Validated</code> on the class enables method-level validation (validating <code>@PathVariable</code> / <code>@RequestParam</code> values directly with constraint annotations). We use only <code>@Valid</code> here since all constraints live on request body records.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 3: ProblemDetail RFC 7807 ── -->
+    <div class="concept">
+      <h3 class="concept-title">ProblemDetail — RFC 7807 Standard Error Responses</h3>
+      <p>Before Spring 6, teams invented their own error body shapes. Every API looked different. RFC 7807 ("Problem Details for HTTP APIs") standardizes it: a JSON object with <code>type</code> (URI identifying the error class), <code>title</code>, <code>status</code>, <code>detail</code>, and optional extensions. Spring 6 ships <code>ProblemDetail</code> as a first-class return type.</p>
+      <pre><code><span class="c">// Spring serializes ProblemDetail to RFC 7807 JSON automatically</span>
+<span class="at">@ExceptionHandler</span>(ResourceNotFoundException.<span class="kw">class</span>)
+ProblemDetail <span class="fn">handleNotFound</span>(ResourceNotFoundException ex) {
+    <span class="kw">var</span> pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    pd.setType(URI.create(<span class="s">"https://taskflow.example.com/errors/not-found"</span>));
+    <span class="kw">return</span> pd;
+}
+
+<span class="c">// Wire yields JSON:</span>
+<span class="c">// { "type": "https://...", "title": "Not Found", "status": 404, "detail": "Task abc not found" }</span></code></pre>
+      <p>The <code>type</code> URI is a stable identifier clients can test against. It doesn't need to resolve to a real URL, but it <em>can</em> — pointing to documentation for that error. <code>title</code> is filled automatically from the HTTP status reason phrase.</p>
+    </div>
+
+    <!-- ── CONCEPT 4: @RestControllerAdvice ── -->
+    <div class="concept">
+      <h3 class="concept-title">@RestControllerAdvice — Centralized Exception Handling</h3>
+      <p><code>@RestControllerAdvice</code> is a combination of <code>@ControllerAdvice</code> (applies to all controllers) and <code>@ResponseBody</code> (return values are serialized to the response body). Methods annotated with <code>@ExceptionHandler</code> intercept exceptions thrown anywhere in the controller layer — including from services called by controllers.</p>
+      <pre><code><span class="at">@RestControllerAdvice</span>
+<span class="kw">public class</span> <span class="cn">GlobalExceptionHandler</span> {
+
+    <span class="at">@ExceptionHandler</span>(BusinessRuleException.<span class="kw">class</span>)
+    ProblemDetail <span class="fn">handleBusinessRule</span>(BusinessRuleException ex) {
+        <span class="kw">return</span> problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), <span class="s">"business-rule"</span>);
+    }
+
+    <span class="at">@ExceptionHandler</span>(MethodArgumentNotValidException.<span class="kw">class</span>)
+    ProblemDetail <span class="fn">handleValidation</span>(MethodArgumentNotValidException ex) {
+        <span class="kw">var</span> detail = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -&gt; fe.getField() + <span class="s">": "</span> + fe.getDefaultMessage())
+                .collect(Collectors.joining(<span class="s">", "</span>));
+        <span class="kw">return</span> problem(HttpStatus.BAD_REQUEST, detail, <span class="s">"validation"</span>);
+    }
+}</code></pre>
+      <div class="callout callout-info">
+        <strong>Exception handler resolution order:</strong> Spring picks the <em>most specific</em> handler. If you have handlers for both <code>Exception</code> and <code>ResourceNotFoundException</code>, a <code>ResourceNotFoundException</code> always hits the specific handler. This lets you add a catch-all <code>@ExceptionHandler(Exception.class)</code> for 500 responses without it swallowing known exceptions.
+      </div>
+      <p><strong>Our exception → HTTP mapping:</strong></p>
+      <table style="width:100%; border-collapse:collapse; margin-top:0.75rem; font-size:0.85rem;">
+        <thead><tr style="border-bottom:1px solid var(--border);">
+          <th style="text-align:left; padding:0.4rem 0.75rem; color:var(--text-dim);">Exception</th>
+          <th style="text-align:left; padding:0.4rem 0.75rem; color:var(--text-dim);">HTTP Status</th>
+          <th style="text-align:left; padding:0.4rem 0.75rem; color:var(--text-dim);">Meaning</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:0.4rem 0.75rem;"><code>ResourceNotFoundException</code></td><td style="padding:0.4rem 0.75rem;">404 Not Found</td><td style="padding:0.4rem 0.75rem;">Entity with given ID doesn't exist</td></tr>
+          <tr style="background:var(--surface2);"><td style="padding:0.4rem 0.75rem;"><code>BusinessRuleException</code></td><td style="padding:0.4rem 0.75rem;">422 Unprocessable Entity</td><td style="padding:0.4rem 0.75rem;">Request is syntactically valid but violates domain rules (e.g., invalid state transition)</td></tr>
+          <tr><td style="padding:0.4rem 0.75rem;"><code>ConflictException</code></td><td style="padding:0.4rem 0.75rem;">409 Conflict</td><td style="padding:0.4rem 0.75rem;">Duplicate (e.g., email already registered)</td></tr>
+          <tr style="background:var(--surface2);"><td style="padding:0.4rem 0.75rem;"><code>ForbiddenException</code></td><td style="padding:0.4rem 0.75rem;">403 Forbidden</td><td style="padding:0.4rem 0.75rem;">Authenticated but not authorized</td></tr>
+          <tr><td style="padding:0.4rem 0.75rem;"><code>MethodArgumentNotValidException</code></td><td style="padding:0.4rem 0.75rem;">400 Bad Request</td><td style="padding:0.4rem 0.75rem;">Bean Validation failed on request body</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-warn">
+        <strong>422 vs 400:</strong> Both indicate client error, but they mean different things. 400 is "I can't parse or validate this input at all." 422 is "I understood the input, it's structurally valid, but it violates a business rule." The distinction matters for clients: on 400, fix the request shape. On 422, fix the application state or workflow. Using 422 for state machine violations (like transitioning from DONE) is the right call.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 5: Pageable ── -->
+    <div class="concept">
+      <h3 class="concept-title">Pageable &amp; PageResponse — Stable Pagination Contract</h3>
+      <p>Spring MVC automatically resolves <code>Pageable</code> parameters from query strings: <code>?page=0&amp;size=20&amp;sort=createdAt,desc</code>. This is wired by <code>SpringDataWebAutoConfiguration</code> (auto-configured in Spring Boot). You declare the parameter and Spring handles the parsing.</p>
+      <pre><code><span class="at">@GetMapping</span>
+<span class="kw">public</span> PageResponse&lt;TaskResponse&gt; <span class="fn">list</span>(
+        <span class="at">@PathVariable</span> UUID projectId,
+        <span class="at">@RequestParam</span>(required = <span class="kw">false</span>) TaskStatus status,
+        Pageable pageable) {     <span class="c">// resolved from ?page=0&amp;size=20&amp;sort=...</span>
+    <span class="kw">var</span> page = status != <span class="kw">null</span>
+            ? taskService.findByProjectAndStatus(projectId, status, pageable)
+            : taskService.findByProject(projectId, pageable);
+    <span class="kw">return</span> PageResponse.from(page.map(TaskResponse::from));
+}</code></pre>
+      <p>We wrap Spring's <code>Page&lt;T&gt;</code> in our own <code>PageResponse&lt;T&gt;</code> record instead of returning <code>Page</code> directly. Spring's <code>Page</code> serializes to JSON but exposes internal fields (<code>pageable</code> nested object, <code>sort</code> details, Spring-specific flags) that create an unstable API contract. <code>PageResponse</code> pins exactly the fields we want:</p>
+      <pre><code><span class="kw">public record</span> <span class="cn">PageResponse</span>&lt;T&gt;(
+        List&lt;T&gt; content,
+        <span class="kw">int</span> page,
+        <span class="kw">int</span> size,
+        <span class="kw">long</span> totalElements,
+        <span class="kw">int</span> totalPages,
+        <span class="kw">boolean</span> last
+) {
+    <span class="kw">public static</span> &lt;T&gt; PageResponse&lt;T&gt; <span class="fn">from</span>(Page&lt;T&gt; page) {
+        <span class="kw">return new</span> <span class="cn">PageResponse</span>&lt;&gt;(page.getContent(), page.getNumber(),
+                page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isLast());
+    }
+}</code></pre>
+    </div>
+
+    <!-- ── CONCEPT 6: Controller Design ── -->
+    <div class="concept">
+      <h3 class="concept-title">Controller Design — HTTP Semantics &amp; Status Codes</h3>
+      <p>REST controllers should express <em>intent</em> through HTTP verbs and status codes, not just return 200 for everything.</p>
+      <table style="width:100%; border-collapse:collapse; margin:0.75rem 0; font-size:0.85rem;">
+        <thead><tr style="border-bottom:1px solid var(--border);">
+          <th style="text-align:left; padding:0.4rem 0.75rem; color:var(--text-dim);">Verb</th>
+          <th style="text-align:left; padding:0.4rem 0.75rem; color:var(--text-dim);">Use case</th>
+          <th style="text-align:left; padding:0.4rem 0.75rem; color:var(--text-dim);">Success status</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:0.4rem 0.75rem;"><code>GET</code></td><td style="padding:0.4rem 0.75rem;">Retrieve resource</td><td style="padding:0.4rem 0.75rem;">200 OK</td></tr>
+          <tr style="background:var(--surface2);"><td style="padding:0.4rem 0.75rem;"><code>POST</code></td><td style="padding:0.4rem 0.75rem;">Create resource</td><td style="padding:0.4rem 0.75rem;">201 Created</td></tr>
+          <tr><td style="padding:0.4rem 0.75rem;"><code>PUT</code></td><td style="padding:0.4rem 0.75rem;">Full replace (or upsert)</td><td style="padding:0.4rem 0.75rem;">200 OK</td></tr>
+          <tr style="background:var(--surface2);"><td style="padding:0.4rem 0.75rem;"><code>PATCH</code></td><td style="padding:0.4rem 0.75rem;">Partial update</td><td style="padding:0.4rem 0.75rem;">200 OK</td></tr>
+          <tr><td style="padding:0.4rem 0.75rem;"><code>DELETE</code></td><td style="padding:0.4rem 0.75rem;">Remove resource</td><td style="padding:0.4rem 0.75rem;">204 No Content</td></tr>
+        </tbody>
+      </table>
+      <p>We use <code>PATCH /tasks/{id}/status</code> (not <code>PUT</code>) because we're updating a single field, not replacing the full task. We use <code>PUT /tasks/{id}/assignee</code> because setting the assignee is idempotent — calling it twice with the same ID produces the same result.</p>
+      <pre><code><span class="c">// @ResponseStatus sets the default success status on the method</span>
+<span class="at">@PostMapping</span>
+<span class="at">@ResponseStatus</span>(HttpStatus.CREATED)    <span class="c">// 201, not 200</span>
+<span class="kw">public</span> UserResponse <span class="fn">create</span>(<span class="at">@RequestBody @Valid</span> CreateUserRequest req) { ... }
+
+<span class="at">@DeleteMapping</span>(<span class="s">"/{taskId}"</span>)
+<span class="at">@ResponseStatus</span>(HttpStatus.NO_CONTENT)  <span class="c">// 204 — no body</span>
+<span class="kw">public void</span> <span class="fn">delete</span>(<span class="at">@PathVariable</span> UUID taskId) { ... }</code></pre>
+      <div class="callout callout-info">
+        <strong>@ResponseStatus vs ResponseEntity:</strong> Use <code>@ResponseStatus</code> when the status is always the same. Use <code>ResponseEntity&lt;T&gt;</code> when it varies (e.g., 200 vs 201 depending on whether you created or updated). For a teaching project with uniform success codes per endpoint, <code>@ResponseStatus</code> keeps controllers cleaner.
+      </div>
+      <div class="callout callout-warn">
+        <strong>API versioning with /api/v1/:</strong> The URL prefix costs nothing now and buys enormous flexibility later. When you need breaking changes, you add <code>/api/v2/</code> routes and maintain both until clients migrate. Alternative approaches — versioning via <code>Accept: application/vnd.taskflow.v2+json</code> header or a <code>?version=2</code> param — are harder to route and test. URL versioning wins in practice for most teams.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 7: Temporary auth coupling ── -->
+    <div class="concept">
+      <h3 class="concept-title">Temporary Identity Coupling (Pre-Auth)</h3>
+      <p>Without Spring Security in place yet, controllers that need to know <em>who is acting</em> (create comment, create task) accept an identity ID in the request body or as a query parameter. This is a deliberate scaffold — explicitly marked with comments so nothing is forgotten when Module 5 lands.</p>
+      <pre><code><span class="c">// CreateCommentRequest.java</span>
+<span class="c">// authorId is a temporary stand-in; replaced by SecurityContextHolder.getContext() in Module 5</span>
+<span class="kw">public record</span> <span class="cn">CreateCommentRequest</span>(
+        <span class="at">@NotBlank @Size</span>(max = 10_000) String body,
+        <span class="at">@NotNull</span> UUID authorId
+) {}
+
+<span class="c">// CommentController.java — query param, same pattern</span>
+<span class="at">@DeleteMapping</span>(<span class="s">"/{commentId}"</span>)
+<span class="at">@ResponseStatus</span>(HttpStatus.NO_CONTENT)
+<span class="kw">public void</span> <span class="fn">delete</span>(<span class="at">@PathVariable</span> UUID commentId,
+                   <span class="at">@RequestParam</span> UUID requestingUserId) {  <span class="c">// Module 5: replace with principal</span>
+    <span class="kw">var</span> user = userService.findById(requestingUserId);
+    commentService.delete(commentId, user);
+}</code></pre>
+      <p>The service layer (which enforces the "only the author can delete" rule) doesn't change in Module 5. Only the controller changes: instead of <code>userService.findById(requestingUserId)</code>, it will call a helper that extracts the authenticated user from <code>SecurityContextHolder</code>. Domain rules stay in the domain; transport-layer identity resolution moves into the security layer.</p>
+    </div>
+
+    <!-- ── QUIZ ── -->
+    <div class="quiz-block">
+      <h3 class="quiz-title">Module 4 — Self-Check</h3>
+
+      <div class="quiz-item">
+        <p class="quiz-q">1. You return a Spring <code>Page&lt;TaskResponse&gt;</code> directly from a controller instead of wrapping it in <code>PageResponse</code>. What is the concrete risk?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>Spring's <code>Page</code> serializes to JSON with a <code>pageable</code> nested object that contains sort details, offset, and Spring-internal flags. If Spring Data's internal representation changes across versions, your JSON response shape changes — silently breaking any client parsing it. Additionally, the <code>sort</code> field serializes in a Spring-specific format. Wrapping in your own record gives you a stable, documented contract that decouples client code from framework internals.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">2. A validation error fires in a request body. Walk through the exact execution path from the HTTP request to the JSON error response.</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>(1) Spring MVC's <code>RequestMappingHandlerAdapter</code> deserializes the request body via Jackson into the record type. (2) Because <code>@Valid</code> is present, the <code>MethodValidationInterceptor</code> runs the Jakarta Validation engine against the deserialized object. (3) If any constraint fails, Spring throws <code>MethodArgumentNotValidException</code> before your controller method executes. (4) The exception propagates up to <code>GlobalExceptionHandler.handleValidation()</code>. (5) That method builds a <code>ProblemDetail</code> with 400 status and the field error messages. (6) Spring serializes the <code>ProblemDetail</code> as JSON and writes it to the response.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">3. What is the difference between 400 Bad Request and 422 Unprocessable Entity, and which one does TaskFlow return for an invalid state machine transition (e.g., DONE → TODO)?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>400 means the server cannot parse or validate the request at the syntax/structure level — malformed JSON, missing required field, invalid UUID format. 422 means the request is syntactically and structurally valid, but the <em>semantic</em> content violates a rule. TaskFlow returns <strong>422</strong> for a DONE → TODO transition: the request body is perfectly valid JSON (<code>{"status": "TODO"}</code> parses fine, it passes Bean Validation), but the domain rule enforced by <code>TaskStatus.canTransitionTo()</code> rejects it. The distinction helps clients decide whether to fix the request shape (400) or fix the application state/workflow (422).</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">4. You add a new unchecked exception <code>RateLimitException</code> to the codebase but forget to add an <code>@ExceptionHandler</code> for it. What does the client receive?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>Spring's default exception handling (via <code>DefaultHandlerExceptionResolver</code> and the <code>ResponseEntityExceptionHandler</code> base class) returns a 500 Internal Server Error with a generic <code>ProblemDetail</code> body (status 500, title "Internal Server Error", no detail leaking stack traces). The stack trace is logged server-side but not exposed to the client. This is the safe default — better than returning raw stack traces. The fix is to add a specific <code>@ExceptionHandler(RateLimitException.class)</code> returning 429 Too Many Requests in <code>GlobalExceptionHandler</code>.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">5. Why does the project use <code>PATCH /tasks/{id}/status</code> instead of <code>PUT /tasks/{id}/status</code> for updating task status?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p><code>PUT</code> semantically means "replace the entire resource at this URL with the provided representation." A PUT to <code>/tasks/{id}/status</code> would imply you're providing a complete replacement for whatever resource lives at that path. <code>PATCH</code> means "apply a partial modification to the resource." Since we're modifying exactly one field (status) on a task that has many other fields (title, description, assignee, dueDate), PATCH correctly signals partial update intent. In practice both would work technically, but PATCH is more semantically honest and helps clients and API tooling understand the contract.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ FOOTER -->
+<footer style="margin-top:3rem; text-align:center; color:var(--text-dim); font-size:0.8rem; border-top:1px solid var(--border); padding-top:1.5rem;">
+  TaskFlow Study Guide &nbsp;·&nbsp; Module 4: REST Controllers, DTOs &amp; Error Handling ✓ &nbsp;·&nbsp;
+  Next: Module 5 — Spring Security &amp; JWT Authentication
+</footer>
+
+<script>
+  function toggle(btn) {
+    const answer = btn.nextElementSibling;
+    const open = answer.classList.toggle('open');
+    btn.textContent = open ? 'Hide' : 'Reveal';
+  }
+</script>
+</body>
+</html>
