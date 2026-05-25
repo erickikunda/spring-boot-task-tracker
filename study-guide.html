@@ -2643,10 +2643,297 @@ DispatcherServlet → Controller → Service</code></pre>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════ MODULE 6 -->
+<div class="module">
+  <div class="module-header">
+    <span class="module-number">Module 6</span>
+    <h2 style="border:none; margin:0; padding:0;">Testing — Unit, Slice &amp; Integration</h2>
+    <div class="module-meta">17 new tests &nbsp;·&nbsp; 36 total &nbsp;·&nbsp; 6 new test files</div>
+  </div>
+  <div class="module-body">
+
+    <h3>The Testing Pyramid</h3>
+    <p>Each tier makes a cost/confidence trade-off:</p>
+    <table class="tbl">
+      <tr><th>Tier</th><th>Annotation</th><th>Spring context?</th><th>DB?</th><th>Speed</th></tr>
+      <tr><td>Unit</td><td><code>@ExtendWith(MockitoExtension.class)</code></td><td>None</td><td>None</td><td>Milliseconds</td></tr>
+      <tr><td>Repository slice</td><td><code>@DataJpaTest</code></td><td>JPA only</td><td>H2 (auto DDL)</td><td>Seconds</td></tr>
+      <tr><td>Controller slice</td><td><code>@WebMvcTest</code></td><td>Web + Security</td><td>None</td><td>Seconds</td></tr>
+      <tr><td>Integration</td><td><code>@SpringBootTest + @Testcontainers</code></td><td>Full</td><td>Real PostgreSQL</td><td>10–30 s</td></tr>
+    </table>
+    <p>Unit tests catch business-logic bugs cheaply. Slice tests catch wiring bugs at the layer boundary. Integration tests catch bugs that only appear when all layers communicate — the kind that slipped through every earlier tier.</p>
+
+    <h3>Tier 1 — Mockito Unit Tests (no Spring)</h3>
+    <pre><code><span class="c">// @ExtendWith gives you @Mock and @InjectMocks without Spring overhead</span>
+@ExtendWith(MockitoExtension.class)
+class AuthServiceTest {
+
+    @Mock UserService     userService;
+    @Mock UserRepository  userRepository;
+    @Mock JwtService      jwtService;
+    @Mock AuthenticationManager authenticationManager;
+    @InjectMocks AuthService authService;
+
+    @Test
+    void login_delegatesToAuthenticationManager_thenReturnsToken() {
+        <span class="c">// arrange</span>
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(alice()));
+        when(jwtService.generateToken(any(UserPrincipal.class))).thenReturn("signed.jwt");
+
+        <span class="c">// act</span>
+        var result = authService.login("alice@example.com", "pass1234");
+
+        <span class="c">// assert: verify the delegation happened AND the result is correct</span>
+        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+        assertThat(result.token()).isEqualTo("signed.jwt");
+    }
+
+    @Test
+    void login_propagatesBadCredentialsException_beforeLoadingUser() {
+        doThrow(new BadCredentialsException("bad")).when(authenticationManager).authenticate(any());
+
+        assertThatThrownBy(() -> authService.login("alice@example.com", "wrong"))
+                .isInstanceOf(BadCredentialsException.class);
+        <span class="c">// Guard: repo must never be queried if auth failed (saves a DB round-trip)</span>
+        verify(userRepository, never()).findByEmail(any());
+    }
+}</code></pre>
+
+    <h4>Key patterns</h4>
+    <ul>
+      <li><strong><code>verify(mock).method()</code></strong> — asserts a call happened, not just the return value. Use it when the side-effect IS the behavior under test (e.g., a delegation).</li>
+      <li><strong><code>verify(mock, never()).method()</code></strong> — asserts a call did NOT happen. Useful for confirming fail-fast paths don't do expensive work.</li>
+      <li><strong><code>doThrow(...).when(mock).method()</code></strong> — the <code>when(...).thenThrow()</code> form doesn't work for void methods; use <code>doThrow</code> instead.</li>
+      <li><strong><code>any(SpecificType.class)</code></strong> — more precise than bare <code>any()</code>; Mockito's strict stubbing will flag unused stubs as failures.</li>
+    </ul>
+
+    <h3>Tier 2 — @DataJpaTest Repository Slices</h3>
+    <pre><code>@DataJpaTest   <span class="c">// loads: JPA, H2, Flyway excluded (Hibernate creates schema from entities)</span>
+class ProjectRepositoryTest {
+
+    @Autowired ProjectRepository projectRepository;
+    @Autowired TestEntityManager em;
+
+    @Test
+    void existsByIdAndMembersContaining_returnsTrueForAddedMember() {
+        var owner  = em.persistAndFlush(user("owner@example.com"));
+        var member = em.persistAndFlush(user("member@example.com"));
+
+        var project = Project.builder()
+                .name("P").status(ProjectStatus.ACTIVE).owner(owner).build();
+        project.getMembers().add(member);
+        em.persistAndFlush(project);
+        em.clear();   <span class="c">// evict first-level cache — forces the next call to hit the DB</span>
+
+        assertThat(projectRepository
+                .existsByIdAndMembersContaining(project.getId(), member)).isTrue();
+    }
+}</code></pre>
+
+    <h4>Why <code>em.clear()</code> matters</h4>
+    <p>Without <code>clear()</code>, Hibernate's first-level (session) cache returns the entity you just persisted — it never hits the database. That means <strong>the query you wrote could be completely wrong and your test would still pass</strong>. <code>clear()</code> evicts everything, forcing every subsequent load to come from the actual DB. Every <code>@DataJpaTest</code> that tests a find/exists method should call it.</p>
+
+    <h4>@DataJpaTest vs Flyway</h4>
+    <p>By default, <code>@DataJpaTest</code> replaces the configured DataSource with an embedded H2 and excludes Flyway auto-configuration. Hibernate creates the schema directly from your entity model using <code>ddl-auto=create-drop</code>. This is fast and keeps slice tests isolated, but it means your actual migration SQL is never exercised here — that's the job of the integration tests.</p>
+
+    <h3>Tier 3 — @WebMvcTest Controller Slices</h3>
+    <p><code>@WebMvcTest(AuthController.class)</code> loads only the web layer: the target controller, all <code>@ControllerAdvice</code> beans (your <code>GlobalExceptionHandler</code>), all <code>Filter</code> beans (<code>JwtAuthenticationFilter</code>), and Spring Security auto-config. Services, repositories, and other <code>@Service</code>/<code>@Repository</code> beans are <strong>excluded</strong>. You supply mocks for everything the slice doesn't load.</p>
+
+    <pre><code><span class="c">// @Import(SecurityConfig.class) activates our custom filter chain instead of
+// Spring Boot's default form-login security. It also enables @EnableMethodSecurity
+// so @PreAuthorize expressions are actually evaluated in the test.</span>
+@WebMvcTest(AuthController.class)
+@Import(SecurityConfig.class)
+class AuthControllerTest {
+
+    @Autowired MockMvc mvc;
+
+    @MockitoBean AuthService authService;
+    <span class="c">// JwtAuthenticationFilter is a Filter (included by @WebMvcTest), but it needs
+    // JwtService and UserDetailsService, which are @Service beans (excluded). Mock them.</span>
+    @MockitoBean JwtService jwtService;
+    @MockitoBean UserDetailsService userDetailsService;
+
+    @Test
+    void register_returns201_withValidBody() throws Exception {
+        when(authService.register(anyString(), anyString(), anyString(), any()))
+                .thenReturn(fakeResponse());
+
+        mvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"alice@example.com","displayName":"Alice","password":"pass1234"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.token").value("signed.jwt"))
+                .andExpect(jsonPath("$.user.email").value("alice@example.com"));
+    }
+
+    <span class="c">// Bean Validation triggers MethodArgumentNotValidException before the service is called.
+    // No mock setup needed — we're testing the constraint annotation, not the service.</span>
+    @Test
+    void register_returns400_whenPasswordIsTooShort() throws Exception {
+        mvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"alice@example.com","displayName":"Alice","password":"short"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+}</code></pre>
+
+    <h4>@MockitoBean vs @MockBean</h4>
+    <p><code>@MockitoBean</code> is the Spring Framework 7 annotation (<code>org.springframework.test.context.bean.override.mockito</code>). It replaces or adds a Mockito mock in the application context. <code>@MockBean</code> from Spring Boot Test is the older equivalent; prefer <code>@MockitoBean</code> in Spring Boot 4.x projects.</p>
+
+    <h3>Security Slice Testing: Two Pitfalls and Their Fixes</h3>
+
+    <h4>Pitfall 1 — Wrong 403 for unauthenticated requests</h4>
+    <p>By default, Spring Security uses <code>Http403ForbiddenEntryPoint</code> when no explicit authentication mechanism (form login, HTTP Basic) is configured. REST clients expect <strong>401 Unauthorized</strong> (re-authenticate) not 403 (you don't have permission). The fix is adding an explicit <code>HttpStatusEntryPoint</code> to the security config — and this is also a production correctness fix:</p>
+    <pre><code><span class="c">// SecurityConfig.java — inside filterChain():</span>
+.exceptionHandling(e -> e.authenticationEntryPoint(
+        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))</code></pre>
+
+    <h4>Pitfall 2 — @WithMockUser ignored in STATELESS sessions</h4>
+    <p><code>@WithMockUser</code> works by setting the <code>SecurityContextHolder</code> before the test method. But in a stateless JWT setup, Spring Security 7's <code>SecurityContextHolderFilter</code> <em>replaces</em> the holder's content with whatever the <code>RequestAttributeSecurityContextRepository</code> has stored — which is nothing. The mock authentication is silently discarded before any filter runs.</p>
+    <p><strong>Use <code>SecurityMockMvcRequestPostProcessors.user()</code> instead.</strong> It injects the authentication directly as a request attribute, which the <code>RequestAttributeSecurityContextRepository</code> reads during the request — so it survives the filter.</p>
+    <pre><code><span class="c">// WRONG — context is cleared by SecurityContextHolderFilter in stateless mode:</span>
+@WithMockUser(roles = "ADMIN")
+void someTest() { ... }
+
+<span class="c">// CORRECT — injects auth into the request attribute the repository reads:</span>
+mvc.perform(get("/api/v1/...")
+        .with(user("admin@example.com").roles("ADMIN")))
+    .andExpect(status().isOk());</code></pre>
+
+    <h4>Testing @PreAuthorize with a named bean</h4>
+    <p><code>@PreAuthorize("@projectSecurity.isMember(...) or hasRole('ADMIN')")</code> calls a bean named <code>projectSecurity</code> via Spring SpEL. In <code>@WebMvcTest</code>, that bean isn't loaded (it's a <code>@Service</code>). Register a mock with the correct bean name:</p>
+    <pre><code><span class="c">// name= must match the @Service("projectSecurity") annotation on the real class.</span>
+@MockitoBean(name = "projectSecurity") ProjectSecurityService projectSecurity;
+
+@Test
+void list_returns403_whenNotMemberOrAdmin() throws Exception {
+    when(projectSecurity.isMember(any(), any())).thenReturn(false);
+
+    mvc.perform(get("/api/v1/projects/{projectId}/tasks", UUID.randomUUID())
+                    .with(user("user@example.com").roles("USER")))
+            .andExpect(status().isForbidden());
+}
+
+<span class="c">// ROLE_ADMIN short-circuits the or — isMember() may return false, still passes.</span>
+@Test
+void list_returns200_forAdmin() throws Exception {
+    when(taskService.findByProject(any(), any())).thenReturn(Page.empty());
+
+    mvc.perform(get("/api/v1/projects/{projectId}/tasks", UUID.randomUUID())
+                    .with(user("admin@example.com").roles("ADMIN")))
+            .andExpect(status().isOk());
+}</code></pre>
+
+    <h3>Tier 4 — @SpringBootTest + Testcontainers Integration</h3>
+    <p>The integration test starts the full application context against a <strong>real PostgreSQL container</strong>. Flyway runs the actual migration scripts, and the test exercises the full call stack: HTTP → security filter → controller → service → repository → DB. It's the only tier that catches SQL mistakes (wrong column names, missing indexes, constraint violations) and schema-code drift.</p>
+
+    <pre><code><span class="c">// Requires Docker to be running. The container is started once per test class (static field).
+// @ServiceConnection reads the container's host/port and auto-configures spring.datasource.*
+// — no manual @DynamicPropertySource needed.</span>
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Testcontainers
+class AuthIntegrationTest {
+
+    @Container
+    @ServiceConnection
+    static PostgreSQLContainer&lt;?&gt; postgres = new PostgreSQLContainer&lt;&gt;("postgres:16-alpine");
+
+    @Autowired TestRestTemplate restTemplate;  <span class="c">// org.springframework.boot.resttestclient</span>
+
+    @Test
+    void registerThenLogin_fullJwtFlow() {
+        <span class="c">// 1. Register → 201 + JWT</span>
+        var register = restTemplate.postForEntity("/api/v1/auth/register",
+                Map.of("email","alice@example.com","displayName","Alice","password","password123"),
+                AuthResponse.class);
+        assertThat(register.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        var token = register.getBody().token();
+
+        <span class="c">// 2. Login with same credentials → 200 + new JWT</span>
+        var login = restTemplate.postForEntity("/api/v1/auth/login",
+                Map.of("email","alice@example.com","password","password123"),
+                AuthResponse.class);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        <span class="c">// 3. No token → 401</span>
+        assertThat(restTemplate.getForEntity("/api/v1/users", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        <span class="c">// 4. Valid token → 200</span>
+        var headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        assertThat(restTemplate.exchange("/api/v1/users", HttpMethod.GET,
+                new HttpEntity&lt;&gt;(headers), String.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+}</code></pre>
+
+    <h4>@ServiceConnection</h4>
+    <p>In Spring Boot 4.x, Testcontainers integration no longer requires <code>@DynamicPropertySource</code>. Annotate the container field with <code>@ServiceConnection</code> and Spring Boot auto-detects the container type, extracts its URL/credentials, and wires the DataSource. The BOM in <code>pom.xml</code> ensures the Testcontainers version matches Spring Boot's expectations.</p>
+
+    <h4>TestRestTemplate in Spring Boot 4.x</h4>
+    <p>The package moved to <code>org.springframework.boot.resttestclient.TestRestTemplate</code> (separate <code>spring-boot-resttestclient</code> module, brought in transitively by <code>spring-boot-starter-test</code>). Unlike <code>RestTemplate</code>, <code>TestRestTemplate</code> does <strong>not</strong> throw exceptions on 4xx/5xx — it returns the <code>ResponseEntity</code>, making status-code assertions straightforward.</p>
+
+    <h4>Test context caching</h4>
+    <p>Spring Boot caches application contexts across tests with the same configuration. <code>TaskFlowApplicationTests</code> uses H2; <code>AuthIntegrationTest</code> uses PostgreSQL via Testcontainers. They have different DataSource configurations so each gets its own context — two full startup cycles in the test suite. If you add more <code>@SpringBootTest</code> classes, keep their configurations identical to share the cached context.</p>
+
+    <hr/>
+
+    <!-- ── QUIZ ──────────────────────────────────────────────────── -->
+    <h2>Module 6 — Quiz</h2>
+
+    <div class="quiz-block">
+      <div class="quiz-q">Q1. You add a new repository method <code>findByStatusAndPriority()</code> and write a <code>@DataJpaTest</code> for it. The test always passes. A colleague points out you forgot a call. What did you forget, and why does it matter?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="reveal-content">
+        <p>You forgot <code>em.clear()</code> after <code>em.persistAndFlush()</code>. Without it, Hibernate's first-level (session) cache returns the entity you just saved, never executing the JPQL query you're testing. The query could have a typo or the wrong join, and the test would still pass. <code>clear()</code> evicts everything, forcing a real DB round-trip.</p>
+      </div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q">Q2. Your <code>@WebMvcTest</code> test expects 401 from an unauthenticated request, but keeps getting 403. You are importing <code>SecurityConfig</code> which has <code>anyRequest().authenticated()</code>. What's wrong and how do you fix it?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="reveal-content">
+        <p>By default, Spring Security uses <code>Http403ForbiddenEntryPoint</code> when there's no explicit authentication mechanism configured (no form login, no HTTP Basic). So unauthenticated requests trigger 403, not 401. Fix: add <code>.exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))</code> to <code>SecurityConfig</code>. This is also a production correctness fix — REST clients use 401 to know they need to re-authenticate.</p>
+      </div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q">Q3. A new developer replaces <code>.with(user("alice").roles("ADMIN"))</code> with <code>@WithMockUser(roles="ADMIN")</code> in a <code>@WebMvcTest</code> test. Tests that were passing now return 401 instead of 200. Explain why.</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="reveal-content">
+        <p><code>@WithMockUser</code> sets the <code>SecurityContextHolder</code> before the test method runs. But with <code>SessionCreationPolicy.STATELESS</code>, Spring Security 7's <code>SecurityContextHolderFilter</code> replaces the holder's content with whatever is in the <code>RequestAttributeSecurityContextRepository</code> — which is empty for a fresh request. The mock authentication is silently discarded. <code>.with(user(...))</code> (from <code>SecurityMockMvcRequestPostProcessors</code>) injects auth as a request attribute, which <em>is</em> what the stateless repository reads. Always use the request post-processor form in stateless JWT setups.</p>
+      </div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q">Q4. What's the difference between testing <code>@PreAuthorize</code> logic in a <code>@WebMvcTest</code> vs a <code>@SpringBootTest</code> integration test? Which is better for catching auth bugs?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="reveal-content">
+        <p><code>@WebMvcTest</code> is faster (no DB, seconds) and good for verifying the SpEL expression logic itself — does ROLE_ADMIN bypass the member check? Does a non-member get 403? You mock <code>@projectSecurity.isMember()</code> to control the outcome. <code>@SpringBootTest</code> with Testcontainers exercises the real DB: is the member relationship actually stored, does the repository query execute correctly, does the JWT round-trip work? The integration test catches bugs the slice can't. Use both: slices for fast iteration on logic, integration for the full flow.</p>
+      </div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q">Q5. Your <code>@DataJpaTest</code> uses H2 and passes. The integration test using Testcontainers PostgreSQL fails with a constraint violation. What class of bug does this reveal?</div>
+      <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+      <div class="reveal-content">
+        <p>Schema-code drift or DB dialect differences. H2 is lenient about things PostgreSQL enforces strictly (case sensitivity on identifiers, certain data type conversions, constraint checking). The bug was always there — the slice test couldn't catch it because it ran against Hibernate's auto-generated H2 schema, not your Flyway migration SQL. Only the integration test runs the actual <code>V*.sql</code> files against a real PostgreSQL engine. This is why integration tests exist even when slice tests pass: different execution paths, different failure modes.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════ FOOTER -->
 <footer style="margin-top:3rem; text-align:center; color:var(--text-dim); font-size:0.8rem; border-top:1px solid var(--border); padding-top:1.5rem;">
-  TaskFlow Study Guide &nbsp;·&nbsp; Module 5: Spring Security &amp; JWT Authentication ✓ &nbsp;·&nbsp;
-  Next: Module 6 — Testing (Unit, Slice, Integration + Testcontainers)
+  TaskFlow Study Guide &nbsp;·&nbsp; Module 6: Testing ✓ &nbsp;·&nbsp;
+  Next: Module 7 — Observability (Structured Logging, MDC, Actuator Metrics)
 </footer>
 
 <script>
