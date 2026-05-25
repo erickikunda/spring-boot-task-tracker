@@ -1,0 +1,56 @@
+package com.example.taskflow.controller;
+
+import com.example.taskflow.dto.CreateProjectRequest;
+import com.example.taskflow.dto.ProjectResponse;
+import com.example.taskflow.security.UserPrincipal;
+import com.example.taskflow.service.ProjectService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/projects")
+@RequiredArgsConstructor
+public class ProjectController {
+
+    private final ProjectService projectService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectResponse create(@RequestBody @Valid CreateProjectRequest req,
+                                   @AuthenticationPrincipal UserPrincipal principal) {
+        return ProjectResponse.from(
+                projectService.create(req.name(), req.description(), principal.user()));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("@projectSecurity.isMember(#id, authentication.name) or hasRole('ADMIN')")
+    public ProjectResponse get(@PathVariable UUID id) {
+        return ProjectResponse.from(projectService.findById(id));
+    }
+
+    @PostMapping("/{id}/members/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')")
+    public void addMember(@PathVariable UUID id, @PathVariable UUID userId) {
+        projectService.addMember(id, userId);
+    }
+
+    @DeleteMapping("/{id}/members/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')")
+    public void removeMember(@PathVariable UUID id, @PathVariable UUID userId) {
+        projectService.removeMember(id, userId);
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')")
+    public ProjectResponse archive(@PathVariable UUID id) {
+        return ProjectResponse.from(projectService.archive(id));
+    }
+}

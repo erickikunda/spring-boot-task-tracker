@@ -2434,10 +2434,219 @@ ProblemDetail <span class="fn">handleNotFound</span>(ResourceNotFoundException e
   </div>
 </div>
 
+<!-- ═══════════════════════════ MODULE 5 ═══════════════════════════ -->
+<div class="module">
+  <div class="module-header">
+    <span class="module-number">05</span>
+    <div>
+      <div class="module-title">Spring Security &amp; JWT Authentication</div>
+      <div class="module-subtitle">Stateless JWT auth · Filter chain · UserDetails · @PreAuthorize · SpEL membership checks</div>
+    </div>
+  </div>
+  <div class="module-body">
+
+    <!-- ── CONCEPT 1: Stateless JWT Overview ── -->
+    <div class="concept">
+      <h3 class="concept-title">Stateless Authentication with JWT</h3>
+      <p>Traditional session-based auth stores login state on the server (HttpSession). JWT (JSON Web Token) auth stores it on the <em>client</em>: the server issues a signed token at login, and the client presents it on every subsequent request. The server only needs to verify the signature — no DB lookup, no shared session store. This makes it naturally stateless and horizontally scalable.</p>
+      <p>A JWT has three Base64URL-encoded parts separated by dots: <code>header.payload.signature</code>. The <strong>payload</strong> (claims) carries the user identity (<code>sub</code>), issue time (<code>iat</code>), and expiry (<code>exp</code>). The <strong>signature</strong> is an HMAC-SHA256 of header+payload, so any tampering invalidates it.</p>
+      <pre><code><span class="c">// JJWT 0.12 API — builder/parser are obtained from Jwts factory methods</span>
+<span class="c">// Generate:</span>
+Jwts.builder()
+    .subject(userDetails.getUsername())   <span class="c">// claim "sub" = email</span>
+    .issuedAt(<span class="kw">new</span> Date(now))
+    .expiration(<span class="kw">new</span> Date(now + expiryMs))
+    .signWith(signingKey())               <span class="c">// HMAC-SHA256</span>
+    .compact();
+
+<span class="c">// Verify + parse:</span>
+Jwts.parser()
+    .verifyWith(signingKey())
+    .build()
+    .parseSignedClaims(token)             <span class="c">// throws JwtException on tamper/expiry</span>
+    .getPayload();</code></pre>
+      <div class="callout callout-warn">
+        <strong>The signing key must be at least 256 bits for HS256.</strong> Store it as a Base64-encoded string in config. Never commit a real secret; use <code>openssl rand -base64 32</code> to generate one per environment. The dev default in <code>application.properties</code> is a fixed known-bad key — it exists only to make the app start without configuration.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 2: The security layer architecture ── -->
+    <div class="concept">
+      <h3 class="concept-title">Security Layer Architecture</h3>
+      <p>Spring Security is a filter chain. Every HTTP request passes through a series of <code>Filter</code> implementations before reaching the servlet (Spring MVC). Our JWT layer adds one custom filter and wires the rest of Spring Security's built-in filters:</p>
+      <pre><code>HTTP Request
+  │
+  ▼
+JwtAuthenticationFilter    ← reads "Authorization: Bearer ..." header
+  │  validates signature + expiry
+  │  loads UserPrincipal from DB
+  │  sets SecurityContextHolder.getContext().setAuthentication(...)
+  ▼
+UsernamePasswordAuthenticationFilter  (skipped — we're stateless)
+  ▼
+ExceptionTranslationFilter  ← converts AccessDeniedException → 403,
+  │                           AuthenticationException → 401
+  ▼
+FilterSecurityInterceptor / AuthorizationFilter
+  │  checks .anyRequest().authenticated()
+  │  checks @PreAuthorize expressions
+  ▼
+DispatcherServlet → Controller → Service</code></pre>
+      <p>Key insight: the filter chain runs <em>before</em> the servlet. If the JWT filter sets authentication in <code>SecurityContextHolder</code>, downstream filters see an authenticated request. If it doesn't (missing/invalid token), the authorization filter rejects it before the controller ever runs.</p>
+      <div class="callout callout-info">
+        <strong>OncePerRequestFilter:</strong> <code>JwtAuthenticationFilter</code> extends <code>OncePerRequestFilter</code> — Spring guarantees the filter executes exactly once per HTTP request, even if the request is forwarded or included internally. Always extend this instead of raw <code>Filter</code> for security-related filters.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 3: UserPrincipal vs entity ── -->
+    <div class="concept">
+      <h3 class="concept-title">UserPrincipal — Separating Security from Domain</h3>
+      <p>Spring Security's <code>UserDetails</code> interface requires methods like <code>getPassword()</code>, <code>getAuthorities()</code>, <code>isAccountNonExpired()</code>. You could implement these on the JPA <code>User</code> entity, but that mixes security concerns into the domain model — the entity would need to know about Spring Security.</p>
+      <p>Instead, a <strong>wrapper record</strong> keeps the separation clean:</p>
+      <pre><code><span class="c">// Wraps the domain User — Spring Security never touches the entity directly</span>
+<span class="kw">public record</span> <span class="cn">UserPrincipal</span>(User user) <span class="kw">implements</span> UserDetails {
+
+    <span class="at">@Override</span>
+    <span class="kw">public</span> Collection&lt;? <span class="kw">extends</span> GrantedAuthority&gt; <span class="fn">getAuthorities</span>() {
+        <span class="kw">return</span> List.of(<span class="kw">new</span> SimpleGrantedAuthority(<span class="s">"ROLE_"</span> + user.getRole().name()));
+    }
+
+    <span class="at">@Override</span> <span class="kw">public</span> String <span class="fn">getPassword</span>() { <span class="kw">return</span> user.getPasswordHash(); }
+
+    <span class="at">@Override</span> <span class="kw">public</span> String <span class="fn">getUsername</span>() { <span class="kw">return</span> user.getEmail(); }
+    <span class="c">// isAccountNonExpired/Locked/CredentialsNonExpired/Enabled default to true in Spring Security 7</span>
+}</code></pre>
+      <p>In Spring Security 7, the four boolean methods have <code>default true</code> implementations in the <code>UserDetails</code> interface. You only need to override them to support account locking, expiry, or disabling.</p>
+      <div class="callout callout-warn">
+        <strong>Why UserDetailsServiceImpl uses UserRepository directly (not UserService):</strong> <code>UserService</code> now depends on <code>PasswordEncoder</code>, which is a bean produced by <code>SecurityConfig</code>. If <code>UserDetailsServiceImpl</code> depended on <code>UserService</code>, and <code>SecurityConfig</code> depended on <code>UserDetailsService</code> (to build <code>AuthenticationProvider</code>), there would be a circular bean dependency at startup. Bypassing the service layer and going straight to <code>UserRepository</code> (which has no security dependency) breaks the cycle.
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 4: DaoAuthenticationProvider ── -->
+    <div class="concept">
+      <h3 class="concept-title">SecurityConfig — Wiring the Filter Chain</h3>
+      <p>The key design rule: inject all dependencies through bean method parameters, not through class-level constructor injection. This lets Spring resolve them lazily during context startup, avoiding circular dependency errors.</p>
+      <pre><code><span class="at">@Bean</span>
+<span class="kw">public</span> SecurityFilterChain <span class="fn">filterChain</span>(HttpSecurity http,
+        JwtAuthenticationFilter jwtAuthFilter,
+        AuthenticationProvider authProvider) <span class="kw">throws</span> Exception {
+    http
+        .csrf(AbstractHttpConfigurer::disable)          <span class="c">// stateless = no CSRF needed</span>
+        .sessionManagement(s -&gt;
+            s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(auth -&gt; auth
+            .requestMatchers(<span class="s">"/api/v1/auth/**"</span>).permitAll()
+            .anyRequest().authenticated())
+        .authenticationProvider(authProvider)
+        .addFilterBefore(jwtAuthFilter,
+            UsernamePasswordAuthenticationFilter.<span class="kw">class</span>);
+    <span class="kw">return</span> http.build();
+}
+
+<span class="at">@Bean</span>
+<span class="kw">public</span> AuthenticationProvider <span class="fn">authenticationProvider</span>(UserDetailsService uds,
+                                                           PasswordEncoder pe) {
+    <span class="c">// Spring Security 7: DaoAuthenticationProvider requires UserDetailsService in constructor</span>
+    <span class="kw">var</span> provider = <span class="kw">new</span> DaoAuthenticationProvider(uds);
+    provider.setPasswordEncoder(pe);
+    <span class="kw">return</span> provider;
+}</code></pre>
+      <p><code>DaoAuthenticationProvider</code> is what <code>AuthenticationManager.authenticate()</code> calls internally. It loads the user via <code>UserDetailsService.loadUserByUsername()</code> and then verifies the password against <code>PasswordEncoder.matches()</code>. You never call it directly — you call <code>authManager.authenticate(new UsernamePasswordAuthenticationToken(email, rawPassword))</code> and let the provider chain handle it.</p>
+    </div>
+
+    <!-- ── CONCEPT 5: @PreAuthorize ── -->
+    <div class="concept">
+      <h3 class="concept-title">@PreAuthorize — Method-Level Authorization</h3>
+      <p><code>@PreAuthorize</code> evaluates a SpEL (Spring Expression Language) expression before the method executes. If the expression is false, Spring throws <code>AccessDeniedException</code> → 403. <code>@EnableMethodSecurity</code> in <code>SecurityConfig</code> activates this.</p>
+      <pre><code><span class="c">// Simple role check</span>
+<span class="at">@PreAuthorize</span>(<span class="s">"hasRole('ADMIN')"</span>)
+<span class="kw">public</span> UserResponse <span class="fn">create</span>(<span class="at">@RequestBody @Valid</span> CreateUserRequest req) { ... }
+
+<span class="c">// Delegate to a service bean — @projectSecurity is the bean name</span>
+<span class="c">// #id binds to the @PathVariable UUID id method parameter</span>
+<span class="c">// authentication.name calls authentication.getName() = UserPrincipal.getUsername() = email</span>
+<span class="at">@PreAuthorize</span>(<span class="s">"@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')"</span>)
+<span class="kw">public</span> ProjectResponse <span class="fn">archive</span>(<span class="at">@PathVariable</span> UUID id) { ... }</code></pre>
+      <p><strong>How <code>authentication.name</code> resolves to the email:</strong> <code>SecurityContextHolder</code> holds the <code>UsernamePasswordAuthenticationToken</code> set by the filter. <code>AbstractAuthenticationToken.getName()</code> checks if the principal implements <code>UserDetails</code> and returns <code>getUsername()</code> — which is the email in <code>UserPrincipal</code>. The result: <code>authentication.name</code> in any SpEL expression is always the email of the logged-in user.</p>
+      <div class="callout callout-warn">
+        <strong>Requires <code>-parameters</code> compiler flag for <code>#paramName</code> to work.</strong> Spring Boot's <code>spring-boot-starter-parent</code> adds this flag to <code>maven-compiler-plugin</code> automatically. Without it, the JVM discards parameter names at compile time and <code>#id</code>/<code>#projectId</code> in SpEL expressions would fail at runtime. This is a silent gotcha when setting up a non-Boot Maven project.
+      </div>
+      <div class="callout callout-info">
+        <strong>@PreAuthorize vs filter-layer rules:</strong> Filter-layer rules (<code>.anyRequest().authenticated()</code>) run before the controller method. <code>@PreAuthorize</code> runs after the filter but before the method body. Use filter rules for coarse-grained access (authenticated vs not). Use <code>@PreAuthorize</code> for fine-grained checks that require business context (is this user a member of this specific project?).
+      </div>
+    </div>
+
+    <!-- ── CONCEPT 6: Auth flow end-to-end ── -->
+    <div class="concept">
+      <h3 class="concept-title">Auth Flow End-to-End</h3>
+      <p><strong>Registration:</strong> <code>POST /api/v1/auth/register</code> → <code>AuthService.register()</code> → <code>UserService.create()</code> hashes password with BCrypt → saves user → <code>JwtService.generateToken()</code> → returns <code>AuthResponse(token, user)</code></p>
+      <p><strong>Login:</strong> <code>POST /api/v1/auth/login</code> → <code>AuthService.login()</code> → <code>authenticationManager.authenticate(email, rawPassword)</code> → <code>DaoAuthenticationProvider</code> calls <code>loadUserByUsername</code> + <code>matches()</code> → on success, load User, generate token → returns <code>AuthResponse</code></p>
+      <p><strong>Authenticated request:</strong> Client sends <code>Authorization: Bearer &lt;token&gt;</code> → <code>JwtAuthenticationFilter</code> extracts and validates token → loads <code>UserPrincipal</code> from DB → sets <code>SecurityContextHolder</code> → request reaches controller → <code>@AuthenticationPrincipal UserPrincipal</code> parameter receives the principal</p>
+      <pre><code><span class="c">// In controller — no userId in request body needed anymore</span>
+<span class="at">@PostMapping</span>
+<span class="at">@ResponseStatus</span>(HttpStatus.CREATED)
+<span class="at">@PreAuthorize</span>(<span class="s">"@projectSecurity.isMember(#projectId, authentication.name)"</span>)
+<span class="kw">public</span> TaskResponse <span class="fn">create</span>(
+        <span class="at">@PathVariable</span> UUID projectId,
+        <span class="at">@RequestBody @Valid</span> CreateTaskRequest req,
+        <span class="at">@AuthenticationPrincipal</span> UserPrincipal principal) {   <span class="c">// injected from SecurityContext</span>
+    <span class="kw">return</span> TaskResponse.from(taskService.create(
+            projectId, principal.user().getId(), ...));
+}</code></pre>
+    </div>
+
+    <!-- ── QUIZ ── -->
+    <div class="quiz-block">
+      <h3 class="quiz-title">Module 5 — Self-Check</h3>
+
+      <div class="quiz-item">
+        <p class="quiz-q">1. A client presents a valid JWT, but the user was deleted from the database after the token was issued. What happens when they make an authenticated request?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p><code>JwtAuthenticationFilter</code> validates the signature and expiry — both pass since the token itself is valid. Then it calls <code>userDetailsService.loadUserByUsername(email)</code>, which queries the database. If the user no longer exists, <code>UsernameNotFoundException</code> is thrown, which Spring Security translates to a 401. So deletion is reflected within one request. The "vulnerability window" is zero if you load from DB on every request (as we do). If you cached the UserDetails object, you'd have a window equal to the cache TTL.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">2. What's the difference between CSRF being "not needed" in a stateless JWT API vs a session-based app, and why is it disabled here?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>CSRF (Cross-Site Request Forgery) attacks work by tricking a browser into sending a request to your API using the session cookie the browser automatically includes. The browser has no control over cookie inclusion — it sends them on every matching-domain request. JWT tokens are NOT automatically sent by browsers — the client JavaScript must explicitly read the token from storage and set the <code>Authorization</code> header. A malicious cross-origin page cannot set custom headers on cross-origin requests (CORS blocks it). Therefore, a stateless API that authenticates exclusively via the <code>Authorization</code> header is inherently CSRF-proof, and the CSRF token mechanism would be pure overhead. However: if you ever store the JWT in a cookie (HttpOnly cookie pattern for SSR apps), CSRF becomes relevant again and should be re-enabled.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">3. Walk through the exact bean initialization order for SecurityConfig, JwtAuthenticationFilter, UserDetailsServiceImpl, and UserService, explaining why there's no circular dependency.</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>(1) <code>UserRepository</code> — Spring Data JPA, no spring-managed deps. (2) <code>UserDetailsServiceImpl</code> — needs <code>UserRepository</code> ✓. (3) <code>JwtProperties</code> — <code>@ConfigurationProperties</code>, no deps. (4) <code>JwtService</code> — needs <code>JwtProperties</code> ✓. (5) <code>JwtAuthenticationFilter</code> — needs <code>JwtService</code> ✓ and <code>UserDetailsService</code> (satisfied by <code>UserDetailsServiceImpl</code>) ✓. (6) <code>SecurityConfig</code> beans fire: <code>PasswordEncoder</code> (no deps), then <code>authenticationProvider(uds, pe)</code> (both available), then <code>filterChain(http, jwtAuthFilter, authProvider)</code> (all available), then <code>AuthenticationManager</code>. (7) <code>UserService</code> — needs <code>UserRepository</code> ✓ and <code>PasswordEncoder</code> ✓. (8) <code>AuthService</code> — needs <code>UserService</code> ✓, <code>JwtService</code> ✓, <code>AuthenticationManager</code> ✓. The key design choice: <code>UserDetailsServiceImpl</code> uses <code>UserRepository</code> directly, NOT <code>UserService</code>. If it used <code>UserService</code>, step 2 would need <code>PasswordEncoder</code>, which needs step 6 (<code>SecurityConfig</code>), which needs step 5 (<code>JwtAuthenticationFilter</code>), which needs step 2 — circular.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">4. A junior dev adds <code>@Transactional</code> to <code>JwtAuthenticationFilter.doFilterInternal()</code>. What goes wrong?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>Filters are not Spring beans managed by the servlet container's filter chain — they're wired via <code>DelegatingFilterProxy</code>, but <code>@Transactional</code> works through AOP proxies. Spring's AOP can proxy a bean, but the proxy is only invoked when the bean is called through Spring's bean machinery. When the servlet container calls <code>doFilter()</code> on the filter, it calls it on the raw object (or through a proxy that doesn't apply <code>@Transactional</code> because filters extend <code>GenericFilterBean</code>, which is not a typical Spring bean proxy target). In practice, <code>@Transactional</code> on a filter method is silently ignored — the annotation has no effect. Additionally, opening a transaction for the duration of the entire filter chain (which includes the entire request lifecycle) is an anti-pattern: it pins a DB connection for the whole request, eliminating the benefit of short-lived transactions. The <code>@Transactional(readOnly = true)</code> on <code>UserDetailsServiceImpl.loadUserByUsername()</code> is the correct placement — it scopes the transaction to just the DB lookup.</p>
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <p class="quiz-q">5. A user is a member of a project but not its owner. They call <code>DELETE /api/v1/projects/{id}/members/{userId}</code> to remove another member. What response do they get, and at which layer is it decided?</p>
+        <button class="reveal-btn" onclick="toggle(this)">Reveal</button>
+        <div class="quiz-answer">
+          <p>They get <strong>403 Forbidden</strong>, decided at the <code>@PreAuthorize</code> layer (method security AOP). The annotation is <code>@PreAuthorize("@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')")</code>. <code>ProjectSecurityService.isOwner()</code> returns <code>false</code> for a non-owner member, <code>hasRole('ADMIN')</code> is also false, so the expression is <code>false</code>. Spring's method security interceptor throws <code>AccessDeniedException</code> before the controller method body executes. <code>ExceptionTranslationFilter</code> in the filter chain catches it and writes a 403 response. The service layer is never reached — there's no <code>BusinessRuleException</code> or domain check involved. This is the two-layer authorization model: coarse-grained (authenticated?) at the filter chain, fine-grained (is owner?) at the method level.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════ FOOTER -->
 <footer style="margin-top:3rem; text-align:center; color:var(--text-dim); font-size:0.8rem; border-top:1px solid var(--border); padding-top:1.5rem;">
-  TaskFlow Study Guide &nbsp;·&nbsp; Module 4: REST Controllers, DTOs &amp; Error Handling ✓ &nbsp;·&nbsp;
-  Next: Module 5 — Spring Security &amp; JWT Authentication
+  TaskFlow Study Guide &nbsp;·&nbsp; Module 5: Spring Security &amp; JWT Authentication ✓ &nbsp;·&nbsp;
+  Next: Module 6 — Testing (Unit, Slice, Integration + Testcontainers)
 </footer>
 
 <script>
