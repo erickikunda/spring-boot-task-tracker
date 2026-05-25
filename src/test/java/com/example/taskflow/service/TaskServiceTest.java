@@ -5,6 +5,8 @@ import com.example.taskflow.exception.BusinessRuleException;
 import com.example.taskflow.repository.ProjectRepository;
 import com.example.taskflow.repository.TaskRepository;
 import com.example.taskflow.repository.UserRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,6 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +29,8 @@ class TaskServiceTest {
     @Mock TaskRepository taskRepository;
     @Mock ProjectRepository projectRepository;
     @Mock UserRepository userRepository;
+    @Mock MeterRegistry meterRegistry;
+    @Mock Counter counter;
     @InjectMocks TaskService taskService;
 
     private Task taskWithStatus(TaskStatus status) {
@@ -52,6 +57,7 @@ class TaskServiceTest {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(userRepository.findById(reporterId)).thenReturn(Optional.of(reporter));
         when(taskRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(meterRegistry.counter(anyString(), anyString(), anyString())).thenReturn(counter);
 
         var result = taskService.create(projectId, reporterId, "New task", null, null, null);
 

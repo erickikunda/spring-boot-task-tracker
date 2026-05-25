@@ -2932,9 +2932,280 @@ class AuthIntegrationTest {
 
 <!-- ═══════════════════════════════════════════════════════ FOOTER -->
 <footer style="margin-top:3rem; text-align:center; color:var(--text-dim); font-size:0.8rem; border-top:1px solid var(--border); padding-top:1.5rem;">
-  TaskFlow Study Guide &nbsp;·&nbsp; Module 6: Testing ✓ &nbsp;·&nbsp;
-  Next: Module 7 — Observability (Structured Logging, MDC, Actuator Metrics)
+  TaskFlow Study Guide &nbsp;·&nbsp; All 7 Modules Complete ✓
 </footer>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODULE 7 — OBSERVABILITY
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section>
+<h2>Module 7 — Observability</h2>
+<p>Observability means you can answer "what is the system doing right now, and why?" without
+attaching a debugger. This module adds three pillars: structured logs, request correlation,
+and business metrics. All three land in the same pull request because they depend on each other
+— Micrometer counters are useless if you can't correlate them to a specific request in the logs.</p>
+
+<h3>7.1 Structured JSON Logging</h3>
+<p>Plain text logs like <code>2026-05-25 INFO UserService - User created</code> are human-readable
+but machine-hostile. Parsing them with regex is fragile. Structured JSON logs emit one JSON
+object per log line, where every field is a typed key-value pair that a log aggregator (ELK,
+Grafana Loki, Datadog) can index without custom parsing.</p>
+
+<p>Spring Boot 4.0 ships built-in structured logging. You pick a format
+(<code>logstash</code>, <code>ecs</code>, or <code>gelf</code>) and Boot's
+<code>StructuredLogEncoder</code> handles the serialization. The logstash format is most common
+and produces fields like <code>@timestamp</code>, <code>level</code>, <code>message</code>,
+<code>logger_name</code>, and every MDC key as a top-level field.</p>
+
+<h4>Profile-aware Logback configuration — <code>logback-spring.xml</code></h4>
+<p>The <code>logback-spring.xml</code> file (not <code>logback.xml</code>) is Spring Boot's
+extension of standard Logback configuration. It gains two powers: <code>&lt;springProfile&gt;</code>
+blocks that activate based on the active Spring profile, and <code>&lt;springProperty&gt;</code>
+that reads values from <code>application.properties</code>.</p>
+
+<pre><code>&lt;!-- !prod matches dev, test, and any unnamed profile --&gt;
+&lt;springProfile name="!prod"&gt;
+  &lt;include resource="org/springframework/boot/logging/logback/console-appender.xml"/&gt;
+  &lt;root level="INFO"&gt;
+    &lt;appender-ref ref="CONSOLE"/&gt;
+  &lt;/root&gt;
+&lt;/springProfile&gt;
+
+&lt;!-- dev-only DEBUG overrides (stacks on top of !prod block) --&gt;
+&lt;springProfile name="dev"&gt;
+  &lt;logger name="com.example.taskflow"        level="DEBUG"/&gt;
+  &lt;logger name="org.springframework.security" level="DEBUG"/&gt;
+&lt;/springProfile&gt;
+
+&lt;!-- prod: structured JSON to stdout + rolling file --&gt;
+&lt;springProfile name="prod"&gt;
+  &lt;include resource=".../structured-console-appender.xml"/&gt;
+  &lt;include resource=".../structured-file-appender.xml"/&gt;
+  &lt;root level="INFO"&gt;
+    &lt;appender-ref ref="CONSOLE"/&gt;
+    &lt;appender-ref ref="FILE"/&gt;
+  &lt;/root&gt;
+&lt;/springProfile&gt;</code></pre>
+
+<p>Key insight: when the active profile is <code>dev</code>, both the <code>!prod</code> block
+AND the <code>dev</code> block execute. The dev block's <code>DEBUG</code> overrides the
+<code>INFO</code> root set by the <code>!prod</code> block for those specific loggers.</p>
+
+<p>Prod format is configured via <code>application-prod.properties</code>:</p>
+<pre><code>logging.structured.format.console=logstash
+logging.structured.format.file=logstash
+logging.file.name=logs/taskflow.log</code></pre>
+
+<p>Spring Boot maps <code>logging.structured.format.console</code> to the Logback property
+<code>CONSOLE_LOG_STRUCTURED_FORMAT</code>, which the included appender XML reads.</p>
+
+<h3>7.2 Request Correlation via MDC</h3>
+<p>MDC (Mapped Diagnostic Context) is SLF4J's thread-local key-value store. Every log statement
+emitted during that thread's lifetime automatically includes the MDC contents. This lets you
+grep all log lines for a single request by filtering on <code>correlationId</code>.</p>
+
+<h4>How MDC works</h4>
+<pre><code>MDC.put("correlationId", "abc-123");   // stored in thread-local map
+log.info("Processing request");         // log line includes correlationId=abc-123 automatically
+MDC.clear();                            // MUST clear — thread pool reuses threads</code></pre>
+
+<p><strong>Critical:</strong> Spring's thread pool (and Tomcat's connection thread pool) reuse
+threads across requests. If you forget <code>MDC.clear()</code>, the previous request's
+<code>correlationId</code> leaks into the next request on that thread. Always clear in a
+<code>finally</code> block.</p>
+
+<h4>CorrelationFilter design</h4>
+<pre><code>@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)   // runs before all other filters
+public class CorrelationFilter extends OncePerRequestFilter {
+    public static final String HEADER = "X-Correlation-ID";
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res,
+                                    FilterChain chain) throws ServletException, IOException {
+        var id = Optional.ofNullable(req.getHeader(HEADER))
+                .filter(h -> !h.isBlank())
+                .orElseGet(() -> UUID.randomUUID().toString());
+        MDC.put("correlationId", id);
+        res.setHeader(HEADER, id);           // echo so clients can correlate
+        try {
+            chain.doFilter(req, res);
+        } finally {
+            MDC.clear();                     // prevent thread-pool leak
+        }
+    }
+}</code></pre>
+
+<p><code>@Order(Ordered.HIGHEST_PRECEDENCE)</code> ensures the correlationId is in MDC before
+Spring Security, your business filters, and your controllers run — so every log statement in
+the entire request lifecycle carries it.</p>
+
+<p><code>JwtAuthenticationFilter</code> adds the authenticated user's email to MDC after it
+resolves the JWT:</p>
+<pre><code>SecurityContextHolder.getContext().setAuthentication(authToken);
+MDC.put("userId", email);   // cleanup delegated to CorrelationFilter.finally</code></pre>
+
+<p>No separate cleanup needed: <code>CorrelationFilter.finally</code> calls <code>MDC.clear()</code>,
+which wipes all keys including <code>userId</code>.</p>
+
+<h4>Text log pattern for dev/test</h4>
+<pre><code># application.properties
+logging.pattern.correlation=[%X{correlationId:-?}]</code></pre>
+
+<p>This sets the <code>LOG_CORRELATION_PATTERN</code> Logback variable. Spring Boot's default
+console appender includes it adjacent to the timestamp. The <code>:-?</code> default means
+<code>[?]</code> appears when no correlationId is set (e.g., during startup before the first
+request).</p>
+
+<h3>7.3 Business Metrics with Micrometer</h3>
+<p>Micrometer is Spring Boot's metrics façade — the same idea as SLF4J for logging. You write
+<code>meterRegistry.counter(...).increment()</code>, and Micrometer forwards it to whatever
+backend is configured (Prometheus, Datadog, CloudWatch, etc.). Zero code change when you
+switch backends.</p>
+
+<h4>Counters with tags</h4>
+<pre><code>// TaskService.create()
+var saved = taskRepository.save(task);
+meterRegistry.counter("tasks.created",
+        "priority", saved.getPriority().name().toLowerCase()).increment();
+return saved;
+
+// AuthService.register()
+meterRegistry.counter("auth.registrations").increment();</code></pre>
+
+<p><strong>Tags</strong> are the key feature. <code>tasks.created{priority="high"}</code> and
+<code>tasks.created{priority="low"}</code> are the same counter name with different dimensions.
+A Grafana dashboard can show total task creation rate, or break it down by priority, using the
+same underlying data.</p>
+
+<h4>Actuator exposure</h4>
+<pre><code># application.properties
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=when-authorized
+management.endpoint.health.show-components=always</code></pre>
+
+<p><code>GET /actuator/metrics/tasks.created</code> returns the current counter value.
+<code>GET /actuator/metrics/tasks.created?tag=priority:high</code> filters by tag.
+In production you'd instead scrape <code>/actuator/prometheus</code> and send to a Prometheus
+server — but the same counter appears there too.</p>
+
+<h3>7.4 Testing Observability Code</h3>
+
+<h4>Testing the filter</h4>
+<p>Filters are POJOs — no Spring context needed. Use Spring's
+<code>MockHttpServletRequest</code> / <code>MockFilterChain</code>:</p>
+<pre><code>@Test
+void echoesExistingCorrelationIdHeader() throws Exception {
+    var req = new MockHttpServletRequest();
+    req.addHeader(CorrelationFilter.HEADER, "my-trace-id");
+    var res = new MockHttpServletResponse();
+
+    filter.doFilterInternal(req, res, new MockFilterChain());
+
+    assertThat(res.getHeader(CorrelationFilter.HEADER)).isEqualTo("my-trace-id");
+}
+
+@Test
+void clearsMdcAfterRequest() throws Exception {
+    var req = new MockHttpServletRequest();
+    req.addHeader(CorrelationFilter.HEADER, "trace-123");
+
+    filter.doFilterInternal(req, new MockHttpServletResponse(), new MockFilterChain());
+
+    assertThat(MDC.get("correlationId")).isNull();   // cleared in finally
+}</code></pre>
+
+<h4>Mocking Micrometer in service unit tests</h4>
+<p>Mockito strict mode requires every stub to be consumed. The <code>MeterRegistry.counter</code>
+varargs overload — <code>counter(String name, String... tags)</code> — needs careful matching.
+When the production code calls <code>counter("tasks.created", "priority", "medium")</code>,
+Mockito sees <em>three</em> separate arguments (name + 2 tag strings), not two:</p>
+<pre><code>@Mock MeterRegistry meterRegistry;
+@Mock Counter counter;
+
+// Correct — match all three expanded vararg elements
+when(meterRegistry.counter(anyString(), anyString(), anyString())).thenReturn(counter);
+
+// Wrong — (String[]) any() creates a 2-arg stub, mismatch with 3-arg call
+// when(meterRegistry.counter(anyString(), (String[]) any())).thenReturn(counter);
+
+// No-tag counter (AuthService) — simple 1-arg stub
+when(meterRegistry.counter("auth.registrations")).thenReturn(counter);</code></pre>
+
+<div class="quiz">
+<h4>Quiz — Module 7</h4>
+
+<div class="q">
+<p><strong>Q1.</strong> Why must <code>MDC.clear()</code> be called in a <code>finally</code> block
+rather than at the end of the normal request flow?</p>
+<button onclick="toggle(this)">Reveal</button>
+<div class="answer">
+<p>If an exception propagates out of the filter chain, normal end-of-method code is skipped. The
+<code>finally</code> block executes regardless of whether <code>chain.doFilter</code> throws.
+Without it, a thread that handles an error request leaks its MDC into the next request assigned
+to that thread by the pool — a different request would log with someone else's <code>correlationId</code>.</p>
+</div>
+</div>
+
+<div class="q">
+<p><strong>Q2.</strong> What is the difference between <code>&lt;springProfile name="!prod"&gt;</code>
+and <code>&lt;springProfile name="dev"&gt;</code> in <code>logback-spring.xml</code>?</p>
+<button onclick="toggle(this)">Reveal</button>
+<div class="answer">
+<p><code>!prod</code> activates for any profile that is NOT prod — this covers dev, test, and
+the default (no profile) case. <code>dev</code> activates only when the <code>dev</code> profile
+is explicitly active. When running in dev, both blocks execute: the <code>!prod</code> block sets
+up the text console appender, then the <code>dev</code> block overrides specific logger levels to
+DEBUG. In a test run (no profile), only the <code>!prod</code> block runs — no DEBUG overrides.</p>
+</div>
+</div>
+
+<div class="q">
+<p><strong>Q3.</strong> Why are Micrometer counter tags important? What can you do with
+<code>tasks.created{priority="high"}</code> vs just <code>tasks.created</code>?</p>
+<button onclick="toggle(this)">Reveal</button>
+<div class="answer">
+<p>Tags add dimensions to a metric without creating separate counters. With a tagged counter, one
+Grafana query can show you total task creation rate (sum across all tags), and another can break
+it down by priority to see if high-priority tasks are spiking. Without tags, you'd need separate
+counter names (<code>tasks.created.high</code>, <code>tasks.created.low</code>) and a separate
+dashboard panel for each. Tags are composable — you can later add an <code>assignee</code> tag
+and your existing priority breakdowns still work.</p>
+</div>
+</div>
+
+<div class="q">
+<p><strong>Q4.</strong> <code>JwtAuthenticationFilter</code> adds <code>userId</code> to MDC but
+has no cleanup code. How does the userId get cleared?</p>
+<button onclick="toggle(this)">Reveal</button>
+<div class="answer">
+<p><code>CorrelationFilter</code> runs at <code>HIGHEST_PRECEDENCE</code> and wraps the entire
+filter chain in a try-finally that calls <code>MDC.clear()</code>. Since
+<code>JwtAuthenticationFilter</code> runs inside that chain, all MDC keys set by any downstream
+filter — including <code>userId</code> — are cleared when <code>CorrelationFilter.finally</code>
+executes after the response is complete. Centralising MDC cleanup in one place avoids bugs where
+individual filters forget to clean up their own keys.</p>
+</div>
+</div>
+
+<div class="q">
+<p><strong>Q5.</strong> Why does Mockito require <code>when(meterRegistry.counter(anyString(),
+anyString(), anyString()))</code> instead of <code>when(meterRegistry.counter(anyString(),
+(String[]) any()))</code> when stubbing a call like
+<code>counter("tasks.created", "priority", "medium")</code>?</p>
+<button onclick="toggle(this)">Reveal</button>
+<div class="answer">
+<p>Java varargs are syntactic sugar: <code>counter("tasks.created", "priority", "medium")</code>
+compiles to a call with three arguments. Mockito records the arity of the actual invocation
+(3 args) and compares it to the arity of the stub (2 matchers in the 2-arg form). Since they
+don't match, Mockito's strict mode raises a <code>PotentialStubbingProblem</code>. Matching each
+expanded vararg element individually (<code>anyString(), anyString(), anyString()</code>) gives
+Mockito three matchers for three arguments — arity matches, stub applies correctly.</p>
+</div>
+</div>
+
+</div><!-- .quiz -->
+</section>
 
 <script>
   function toggle(btn) {

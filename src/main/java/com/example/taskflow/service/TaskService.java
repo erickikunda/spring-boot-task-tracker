@@ -6,6 +6,7 @@ import com.example.taskflow.exception.ResourceNotFoundException;
 import com.example.taskflow.repository.ProjectRepository;
 import com.example.taskflow.repository.TaskRepository;
 import com.example.taskflow.repository.UserRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final MeterRegistry meterRegistry;
 
     public Task findById(UUID id) {
         return taskRepository.findById(id)
@@ -59,7 +61,11 @@ public class TaskService {
                 .reporter(reporter)
                 .build();
 
-        return taskRepository.save(task);
+        var saved = taskRepository.save(task);
+        // Tag by priority so you can break down tasks.created{priority="HIGH"} in dashboards
+        meterRegistry.counter("tasks.created",
+                "priority", saved.getPriority().name().toLowerCase()).increment();
+        return saved;
     }
 
     @Transactional

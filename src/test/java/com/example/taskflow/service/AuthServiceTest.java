@@ -5,6 +5,8 @@ import com.example.taskflow.domain.User;
 import com.example.taskflow.repository.UserRepository;
 import com.example.taskflow.security.JwtService;
 import com.example.taskflow.security.UserPrincipal;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,6 +31,8 @@ class AuthServiceTest {
     @Mock UserRepository userRepository;
     @Mock JwtService jwtService;
     @Mock AuthenticationManager authenticationManager;
+    @Mock MeterRegistry meterRegistry;
+    @Mock Counter counter;
     @InjectMocks AuthService authService;
 
     private User alice() {
@@ -42,6 +46,7 @@ class AuthServiceTest {
         var user = alice();
         when(userService.create(anyString(), anyString(), anyString(), any())).thenReturn(user);
         when(jwtService.generateToken(any(UserPrincipal.class))).thenReturn("signed.jwt");
+        when(meterRegistry.counter("auth.registrations")).thenReturn(counter);
 
         var result = authService.register("alice@example.com", "Alice", "pass1234", Role.MEMBER);
 

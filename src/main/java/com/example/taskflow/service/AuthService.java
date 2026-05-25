@@ -5,6 +5,7 @@ import com.example.taskflow.dto.UserResponse;
 import com.example.taskflow.repository.UserRepository;
 import com.example.taskflow.security.JwtService;
 import com.example.taskflow.security.UserPrincipal;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,10 +19,12 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final MeterRegistry meterRegistry;
 
     public AuthResponse register(String email, String displayName, String password,
                                   com.example.taskflow.domain.Role role) {
         var user = userService.create(email, displayName, password, role);
+        meterRegistry.counter("auth.registrations").increment();
         var token = jwtService.generateToken(new UserPrincipal(user));
         return new AuthResponse(token, UserResponse.from(user));
     }
