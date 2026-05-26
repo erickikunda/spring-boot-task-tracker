@@ -3,6 +3,7 @@ package com.example.taskflow.service;
 import com.example.taskflow.domain.Project;
 import com.example.taskflow.domain.ProjectStatus;
 import com.example.taskflow.domain.User;
+import com.example.taskflow.dto.UserResponse;
 import com.example.taskflow.exception.BusinessRuleException;
 import com.example.taskflow.exception.ResourceNotFoundException;
 import com.example.taskflow.repository.ProjectRepository;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +35,13 @@ public class ProjectService {
 
     public List<Project> findByMember(User member) {
         return projectRepository.findByMembersContaining(member);
+    }
+
+    public List<UserResponse> findMembers(UUID projectId) {
+        return findById(projectId).getMembers().stream()
+                .map(UserResponse::from)
+                .sorted(Comparator.comparing(UserResponse::displayName))
+                .toList();
     }
 
     @Transactional

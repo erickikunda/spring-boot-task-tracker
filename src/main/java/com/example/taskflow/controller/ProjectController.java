@@ -2,6 +2,7 @@ package com.example.taskflow.controller;
 
 import com.example.taskflow.dto.CreateProjectRequest;
 import com.example.taskflow.dto.ProjectResponse;
+import com.example.taskflow.dto.UserResponse;
 import com.example.taskflow.security.UserPrincipal;
 import com.example.taskflow.service.ProjectService;
 import jakarta.validation.Valid;
@@ -41,6 +42,12 @@ public class ProjectController {
     @PreAuthorize("@projectSecurity.isMember(#id, authentication.name) or hasRole('ADMIN')")
     public ProjectResponse get(@PathVariable UUID id) {
         return ProjectResponse.from(projectService.findById(id));
+    }
+
+    @GetMapping("/{id}/members")
+    @PreAuthorize("@projectSecurity.isMember(#id, authentication.name) or hasRole('ADMIN')")
+    public List<UserResponse> getMembers(@PathVariable UUID id) {
+        return projectService.findMembers(id);
     }
 
     @PostMapping("/{id}/members/{userId}")
