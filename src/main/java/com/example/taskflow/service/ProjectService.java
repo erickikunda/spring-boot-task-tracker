@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +34,13 @@ public class ProjectService {
 
     public List<Project> findByMember(User member) {
         return projectRepository.findByMembersContaining(member);
+    }
+
+    public List<User> findMembers(UUID projectId) {
+        var project = findById(projectId);
+        return project.getMembers().stream()
+                .sorted(Comparator.comparing(User::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     @Transactional
