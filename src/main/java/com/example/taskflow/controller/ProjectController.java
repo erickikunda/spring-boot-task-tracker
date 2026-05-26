@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -19,6 +20,14 @@ import java.util.UUID;
 public class ProjectController {
 
     private final ProjectService projectService;
+
+    @GetMapping
+    public List<ProjectResponse> listForCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
+        return projectService.findByMember(principal.user())
+                .stream()
+                .map(ProjectResponse::from)
+                .toList();
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
