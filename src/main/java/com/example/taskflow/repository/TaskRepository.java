@@ -10,18 +10,23 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
 
+    @Override
+    @EntityGraph(attributePaths = {"project", "assignee", "reporter"})
+    Optional<Task> findById(UUID id);
+
     List<Task> findByProject(Project project);
 
-    // assignee + reporter are ManyToOne (single-valued) — safe to JOIN FETCH with pagination.
+    // project + assignee + reporter are ManyToOne (single-valued) — safe to JOIN FETCH with pagination.
     // Never add a collection (e.g. comments) here: Hibernate would apply LIMIT in memory.
-    @EntityGraph(attributePaths = {"assignee", "reporter"})
+    @EntityGraph(attributePaths = {"project", "assignee", "reporter"})
     Page<Task> findByProject(Project project, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"assignee", "reporter"})
+    @EntityGraph(attributePaths = {"project", "assignee", "reporter"})
     Page<Task> findByProjectAndStatus(Project project, TaskStatus status, Pageable pageable);
 
     List<Task> findByAssignee(User assignee);
