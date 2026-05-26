@@ -18,8 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 // Full-stack integration test: real PostgreSQL (Testcontainers), real Flyway migrations, real JWT.
 // Requires Docker to be running. @ServiceConnection auto-configures the DataSource
 // to point at the container — no manual properties needed.
+// disabledWithoutDocker=true skips (not errors) when Docker isn't available — safe for local dev.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class AuthIntegrationTest {
 
     @Container
