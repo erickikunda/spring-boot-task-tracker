@@ -35,3 +35,4 @@ build/
 
 ### VS Code ###
 .vscode/
+/configure_repo.sh
