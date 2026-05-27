@@ -2,6 +2,7 @@ package com.example.taskflow.service;
 
 import com.example.taskflow.domain.Role;
 import com.example.taskflow.domain.User;
+import com.example.taskflow.mapper.UserMapperImpl;
 import com.example.taskflow.repository.UserRepository;
 import com.example.taskflow.security.JwtService;
 import com.example.taskflow.security.UserPrincipal;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -33,6 +35,7 @@ class AuthServiceTest {
     @Mock AuthenticationManager authenticationManager;
     @Mock MeterRegistry meterRegistry;
     @Mock Counter counter;
+    @Spy UserMapperImpl userMapper;
     @InjectMocks AuthService authService;
 
     private User alice() {

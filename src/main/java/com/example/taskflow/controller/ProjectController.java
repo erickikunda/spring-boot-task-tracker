@@ -3,6 +3,8 @@ package com.example.taskflow.controller;
 import com.example.taskflow.dto.CreateProjectRequest;
 import com.example.taskflow.dto.ProjectResponse;
 import com.example.taskflow.dto.UserResponse;
+import com.example.taskflow.mapper.ProjectMapper;
+import com.example.taskflow.mapper.UserMapper;
 import com.example.taskflow.security.UserPrincipal;
 import com.example.taskflow.service.ProjectService;
 import jakarta.validation.Valid;
@@ -21,12 +23,14 @@ import java.util.UUID;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectMapper projectMapper;
+    private final UserMapper userMapper;
 
     @GetMapping
     public List<ProjectResponse> listForCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
         return projectService.findByMember(principal.user())
                 .stream()
-                .map(ProjectResponse::from)
+                .map(projectMapper::toResponse)
                 .toList();
     }
 
@@ -34,14 +38,14 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     public ProjectResponse create(@RequestBody @Valid CreateProjectRequest req,
                                    @AuthenticationPrincipal UserPrincipal principal) {
-        return ProjectResponse.from(
+        return projectMapper.toResponse(
                 projectService.create(req.name(), req.description(), principal.user()));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("@projectSecurity.isMember(#id, authentication.name) or hasRole('ADMIN')")
     public ProjectResponse get(@PathVariable UUID id) {
-        return ProjectResponse.from(projectService.findById(id));
+        return projectMapper.toResponse(projectService.findById(id));
     }
 
     @GetMapping("/{id}/members")
@@ -49,7 +53,7 @@ public class ProjectController {
     public List<UserResponse> members(@PathVariable UUID id) {
         return projectService.findMembers(id)
                 .stream()
-                .map(UserResponse::from)
+                .map(userMapper::toResponse)
                 .toList();
     }
 
@@ -70,6 +74,6 @@ public class ProjectController {
     @PostMapping("/{id}/archive")
     @PreAuthorize("@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')")
     public ProjectResponse archive(@PathVariable UUID id) {
-        return ProjectResponse.from(projectService.archive(id));
+        return projectMapper.toResponse(projectService.archive(id));
     }
 }

@@ -8,6 +8,8 @@ import com.example.taskflow.domain.Role;
 import com.example.taskflow.domain.Task;
 import com.example.taskflow.domain.TaskStatus;
 import com.example.taskflow.domain.User;
+import com.example.taskflow.mapper.TaskMapperImpl;
+import com.example.taskflow.mapper.UserMapperImpl;
 import com.example.taskflow.security.JwtService;
 import com.example.taskflow.security.ProjectSecurityService;
 import com.example.taskflow.service.TaskService;
@@ -40,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // discarding what @WithMockUser set. Use SecurityMockMvcRequestPostProcessors.user() instead;
 // it injects auth directly as a request attribute, which the stateless repository DOES read.
 @WebMvcTest(TaskController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, UserMapperImpl.class, TaskMapperImpl.class})
 class TaskControllerTest {
 
     @Autowired MockMvc mvc;

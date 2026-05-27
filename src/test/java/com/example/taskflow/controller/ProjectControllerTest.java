@@ -3,6 +3,8 @@ package com.example.taskflow.controller;
 import com.example.taskflow.config.SecurityConfig;
 import com.example.taskflow.domain.Role;
 import com.example.taskflow.domain.User;
+import com.example.taskflow.mapper.ProjectMapperImpl;
+import com.example.taskflow.mapper.UserMapperImpl;
 import com.example.taskflow.security.JwtService;
 import com.example.taskflow.security.ProjectSecurityService;
 import com.example.taskflow.service.ProjectService;
@@ -26,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ProjectController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, UserMapperImpl.class, ProjectMapperImpl.class})
 class ProjectControllerTest {
 
     @Autowired MockMvc mvc;

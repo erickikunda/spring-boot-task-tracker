@@ -2,6 +2,7 @@ package com.example.taskflow.controller;
 
 import com.example.taskflow.dto.CommentResponse;
 import com.example.taskflow.dto.CreateCommentRequest;
+import com.example.taskflow.mapper.CommentMapper;
 import com.example.taskflow.security.UserPrincipal;
 import com.example.taskflow.service.CommentService;
 import jakarta.validation.Valid;
@@ -19,11 +20,12 @@ import java.util.UUID;
 public class CommentController {
 
     private final CommentService commentService;
+    private final CommentMapper commentMapper;
 
     @GetMapping
     public List<CommentResponse> list(@PathVariable UUID taskId) {
         return commentService.findByTask(taskId).stream()
-                .map(CommentResponse::from)
+                .map(commentMapper::toResponse)
                 .toList();
     }
 
@@ -33,7 +35,7 @@ public class CommentController {
             @PathVariable UUID taskId,
             @RequestBody @Valid CreateCommentRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return CommentResponse.from(commentService.create(taskId, principal.user(), req.body()));
+        return commentMapper.toResponse(commentService.create(taskId, principal.user(), req.body()));
     }
 
     // Service enforces author-only delete; ADMIN override is wired via @PreAuthorize in the service.

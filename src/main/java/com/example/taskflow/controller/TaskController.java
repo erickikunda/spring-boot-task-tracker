@@ -2,6 +2,7 @@ package com.example.taskflow.controller;
 
 import com.example.taskflow.domain.TaskStatus;
 import com.example.taskflow.dto.*;
+import com.example.taskflow.mapper.TaskMapper;
 import com.example.taskflow.security.UserPrincipal;
 import com.example.taskflow.service.TaskService;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class TaskController {
 
     private final TaskService taskService;
+    private final TaskMapper taskMapper;
 
     @GetMapping
     @PreAuthorize("@projectSecurity.isMember(#projectId, authentication.name) or hasRole('ADMIN')")
@@ -30,7 +32,7 @@ public class TaskController {
         var page = status != null
                 ? taskService.findByProjectAndStatus(projectId, status, pageable)
                 : taskService.findByProject(projectId, pageable);
-        return PageResponse.from(page.map(TaskResponse::from));
+        return PageResponse.from(page.map(taskMapper::toResponse));
     }
 
     @PostMapping
@@ -40,7 +42,7 @@ public class TaskController {
             @PathVariable UUID projectId,
             @RequestBody @Valid CreateTaskRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return TaskResponse.from(taskService.create(
+        return taskMapper.toResponse(taskService.create(
                 projectId, principal.user().getId(),
                 req.title(), req.description(), req.priority(), req.dueDate()));
     }
@@ -48,7 +50,7 @@ public class TaskController {
     @GetMapping("/{taskId}")
     @PreAuthorize("@projectSecurity.isMember(#projectId, authentication.name) or hasRole('ADMIN')")
     public TaskResponse get(@PathVariable UUID projectId, @PathVariable UUID taskId) {
-        return TaskResponse.from(taskService.findById(taskId));
+        return taskMapper.toResponse(taskService.findById(taskId));
     }
 
     @PatchMapping("/{taskId}/status")
@@ -57,7 +59,7 @@ public class TaskController {
             @PathVariable UUID projectId,
             @PathVariable UUID taskId,
             @RequestBody @Valid UpdateTaskStatusRequest req) {
-        return TaskResponse.from(taskService.updateStatus(taskId, req.status()));
+        return taskMapper.toResponse(taskService.updateStatus(taskId, req.status()));
     }
 
     @PutMapping("/{taskId}/assignee")
@@ -66,7 +68,7 @@ public class TaskController {
             @PathVariable UUID projectId,
             @PathVariable UUID taskId,
             @RequestBody @Valid AssignTaskRequest req) {
-        return TaskResponse.from(taskService.assign(taskId, req.assigneeId()));
+        return taskMapper.toResponse(taskService.assign(taskId, req.assigneeId()));
     }
 
     @DeleteMapping("/{taskId}/assignee")

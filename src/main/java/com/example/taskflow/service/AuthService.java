@@ -1,7 +1,7 @@
 package com.example.taskflow.service;
 
 import com.example.taskflow.dto.AuthResponse;
-import com.example.taskflow.dto.UserResponse;
+import com.example.taskflow.mapper.UserMapper;
 import com.example.taskflow.repository.UserRepository;
 import com.example.taskflow.security.JwtService;
 import com.example.taskflow.security.UserPrincipal;
@@ -20,13 +20,14 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final MeterRegistry meterRegistry;
+    private final UserMapper userMapper;
 
     public AuthResponse register(String email, String displayName, String password,
                                   com.example.taskflow.domain.Role role) {
         var user = userService.create(email, displayName, password, role);
         meterRegistry.counter("auth.registrations").increment();
         var token = jwtService.generateToken(new UserPrincipal(user));
-        return new AuthResponse(token, UserResponse.from(user));
+        return new AuthResponse(token, userMapper.toResponse(user));
     }
 
     public AuthResponse login(String email, String rawPassword) {
@@ -36,6 +37,6 @@ public class AuthService {
         var user = userRepository.findByEmail(email)
                 .orElseThrow();  // can't happen: authenticate() succeeded
         var token = jwtService.generateToken(new UserPrincipal(user));
-        return new AuthResponse(token, UserResponse.from(user));
+        return new AuthResponse(token, userMapper.toResponse(user));
     }
 }
