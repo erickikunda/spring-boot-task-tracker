@@ -48,4 +48,11 @@ public class UserService {
                 .role(role != null ? role : Role.MEMBER)
                 .build());
     }
+
+    @Transactional
+    public User updateRole(UUID id, Role newRole) {
+        var user = findById(id);
+        user.setRole(newRole);
+        return userRepository.save(user);
+    }
 }

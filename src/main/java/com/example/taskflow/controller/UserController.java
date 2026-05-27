@@ -2,6 +2,7 @@ package com.example.taskflow.controller;
 
 import com.example.taskflow.dto.CreateUserRequest;
 import com.example.taskflow.dto.PageResponse;
+import com.example.taskflow.dto.UpdateRoleRequest;
 import com.example.taskflow.dto.UserResponse;
 import com.example.taskflow.mapper.UserMapper;
 import com.example.taskflow.service.UserService;
@@ -39,5 +40,11 @@ public class UserController {
     public UserResponse create(@RequestBody @Valid CreateUserRequest req) {
         return userMapper.toResponse(
                 userService.create(req.email(), req.displayName(), req.password(), req.role()));
+    }
+
+    @PatchMapping("/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse updateRole(@PathVariable UUID id, @RequestBody @Valid UpdateRoleRequest req) {
+        return userMapper.toResponse(userService.updateRole(id, req.role()));
     }
 }
