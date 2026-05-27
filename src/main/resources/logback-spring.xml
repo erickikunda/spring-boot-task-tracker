@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Profile-aware logging configuration.
+  • dev / test / (no profile): colored text with correlationId visible inline
+  • prod: structured JSON (logstash format) to stdout + rolling file
+-->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="app"/>
+
+  <!-- ── Dev + Test: colored human-readable text ────────────────────────────── -->
+  <springProfile name="!prod">
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+  <!-- Dev only: increase verbosity for application code and Spring Security -->
+  <springProfile name="dev">
+    <logger name="com.example.taskflow"        level="DEBUG"/>
+    <logger name="org.springframework.security" level="DEBUG"/>
+  </springProfile>
+
+  <!-- ── Prod: structured JSON to stdout + size/time-rolling file ────────────── -->
+  <springProfile name="prod">
+    <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
+    <include resource="org/springframework/boot/logging/logback/structured-file-appender.xml"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="FILE"/>
+    </root>
+    <logger name="com.example.taskflow" level="INFO"/>
+    <logger name="org.hibernate.SQL"    level="WARN"/>
+  </springProfile>
+</configuration>
