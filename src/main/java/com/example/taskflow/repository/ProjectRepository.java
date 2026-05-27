@@ -4,6 +4,9 @@ import com.example.taskflow.domain.Project;
 import com.example.taskflow.domain.User;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +29,13 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     boolean existsByIdAndOwner(UUID id, User owner);
 
     boolean existsByIdAndMembersContaining(UUID id, User user);
+
+    // CAST(id AS VARCHAR) is ANSI SQL and works with both H2 and PostgreSQL.
+    // clearAutomatically evicts stale first-level cache entries after the bulk UPDATE.
+    @Modifying(clearAutomatically = true)
+    @Query(
+        value = "UPDATE projects SET status = :status, updated_at = NOW() WHERE CAST(id AS VARCHAR) IN (:ids)",
+        nativeQuery = true
+    )
+    int updateStatusByIds(@Param("ids") List<String> ids, @Param("status") String status);
 }

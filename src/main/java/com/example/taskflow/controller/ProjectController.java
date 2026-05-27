@@ -1,5 +1,7 @@
 package com.example.taskflow.controller;
 
+import com.example.taskflow.dto.BatchStatusUpdateRequest;
+import com.example.taskflow.dto.BatchUpdateResult;
 import com.example.taskflow.dto.CreateProjectRequest;
 import com.example.taskflow.dto.ProjectResponse;
 import com.example.taskflow.dto.UserResponse;
@@ -8,15 +10,19 @@ import com.example.taskflow.mapper.UserMapper;
 import com.example.taskflow.security.UserPrincipal;
 import com.example.taskflow.service.ProjectService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+@Validated
 @RestController
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
@@ -75,5 +81,13 @@ public class ProjectController {
     @PreAuthorize("@projectSecurity.isOwner(#id, authentication.name) or hasRole('ADMIN')")
     public ProjectResponse archive(@PathVariable UUID id) {
         return projectMapper.toResponse(projectService.archive(id));
+    }
+
+    @PatchMapping("/batch-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public BatchUpdateResult batchUpdateStatus(
+            @RequestBody @Valid BatchStatusUpdateRequest req,
+            @RequestParam(defaultValue = "500") @Min(1) @Max(1000) int batchSize) {
+        return projectService.batchUpdateStatus(req.projectIds(), req.newStatus(), batchSize);
     }
 }

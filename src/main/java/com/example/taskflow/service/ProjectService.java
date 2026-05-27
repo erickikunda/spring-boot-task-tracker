@@ -3,6 +3,7 @@ package com.example.taskflow.service;
 import com.example.taskflow.domain.Project;
 import com.example.taskflow.domain.ProjectStatus;
 import com.example.taskflow.domain.User;
+import com.example.taskflow.dto.BatchUpdateResult;
 import com.example.taskflow.exception.BusinessRuleException;
 import com.example.taskflow.exception.ResourceNotFoundException;
 import com.example.taskflow.repository.ProjectRepository;
@@ -81,5 +82,20 @@ public class ProjectService {
         var project = findById(projectId);
         project.setStatus(ProjectStatus.ARCHIVED);
         return projectRepository.save(project);
+    }
+
+    // Runs all chunks inside one transaction: either every batch commits or none does.
+    // Native IN-list queries degrade past ~1000 ids (query plan, DB limits), so we chunk.
+    @Transactional
+    public BatchUpdateResult batchUpdateStatus(List<UUID> ids, ProjectStatus newStatus, int batchSize) {
+        List<String> idStrings = ids.stream().map(UUID::toString).toList();
+        int updatedCount = 0;
+        int batchCount = 0;
+        for (int i = 0; i < idStrings.size(); i += batchSize) {
+            List<String> chunk = idStrings.subList(i, Math.min(i + batchSize, idStrings.size()));
+            updatedCount += projectRepository.updateStatusByIds(chunk, newStatus.name());
+            batchCount++;
+        }
+        return new BatchUpdateResult(updatedCount, batchCount, batchSize);
     }
 }
