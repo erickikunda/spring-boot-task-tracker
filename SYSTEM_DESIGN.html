@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow — System Design Document</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f1117;
+      --surface:     #161b27;
+      --surface2:    #1e2533;
+      --border:      #2a3245;
+      --text:        #cdd6f4;
+      --text-muted:  #6e7d9e;
+      --accent:      #89b4fa;
+      --accent2:     #74c7ec;
+      --green:       #a6e3a1;
+      --yellow:      #f9e2af;
+      --red:         #f38ba8;
+      --orange:      #fab387;
+      --purple:      #cba6f7;
+      --teal:        #94e2d5;
+      --code-bg:     #1e2533;
+      --sidebar-w:   260px;
+      --header-h:    60px;
+      font-size: 15px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 24px 0 40px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      flex-shrink: 0;
+    }
+
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 20px 12px;
+    }
+
+    .sidebar-brand {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      padding: 0 20px 20px;
+      display: block;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .toc-list { list-style: none; }
+
+    .toc-list a {
+      display: block;
+      padding: 5px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: color .15s, border-color .15s, background .15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toc-list a:hover {
+      color: var(--text);
+      background: var(--surface2);
+      border-left-color: var(--border);
+    }
+
+    .toc-list a.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: rgba(137,180,250,.06);
+    }
+
+    .toc-sub a { padding-left: 36px; font-size: 12px; }
+
+    /* ── Main content ─────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      max-width: 900px;
+      padding: 48px 56px 80px;
+      min-width: 0;
+    }
+
+    /* ── Document header card ─────────────────────────────────── */
+    .doc-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin-bottom: 48px;
+    }
+
+    .doc-header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 20px;
+      letter-spacing: -.02em;
+    }
+
+    .doc-header h1 span { color: var(--accent); }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .meta-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .meta-item .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .meta-item .value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Section headings ─────────────────────────────────────── */
+    .section {
+      margin-bottom: 56px;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      scroll-margin-top: 24px;
+    }
+
+    h2 .num {
+      background: var(--accent);
+      color: var(--bg);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: .04em;
+    }
+
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent2);
+      margin: 24px 0 12px;
+      scroll-margin-top: 24px;
+    }
+
+    h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--yellow);
+      margin: 20px 0 10px;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    }
+
+    p { margin-bottom: 14px; }
+    p:last-child { margin-bottom: 0; }
+
+    strong { color: #fff; font-weight: 600; }
+    em { color: var(--yellow); font-style: normal; font-weight: 500; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    ul, ol {
+      padding-left: 22px;
+      margin-bottom: 14px;
+    }
+    li { margin-bottom: 6px; }
+
+    blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 10px 16px;
+      background: rgba(137,180,250,.05);
+      border-radius: 0 6px 6px 0;
+      color: var(--text-muted);
+      font-style: italic;
+      margin: 16px 0;
+    }
+
+    /* ── Inline code ──────────────────────────────────────────── */
+    code {
+      font-family: "SF Mono", "Fira Code", Consolas, "Courier New", monospace;
+      font-size: .88em;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--teal);
+    }
+
+    /* ── Code blocks ──────────────────────────────────────────── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      overflow-x: auto;
+      margin: 16px 0 20px;
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text);
+      font-size: inherit;
+    }
+
+    .code-json { color: var(--green); }
+    .code-comment { color: var(--text-muted); font-style: italic; }
+
+    /* ── Tables ───────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: 16px 0 20px; border-radius: 8px; border: 1px solid var(--border); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    tbody td { padding: 10px 14px; vertical-align: top; }
+
+    /* ── HTTP method badges ───────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+
+    .badge-get    { color: var(--green);  border-color: var(--green);  background: rgba(166,227,161,.08); }
+    .badge-post   { color: var(--accent); border-color: var(--accent); background: rgba(137,180,250,.08); }
+    .badge-patch  { color: var(--orange); border-color: var(--orange); background: rgba(250,179,135,.08); }
+    .badge-put    { color: var(--purple); border-color: var(--purple); background: rgba(203,166,247,.08); }
+    .badge-delete { color: var(--red);    border-color: var(--red);    background: rgba(243,139,168,.08); }
+
+    /* ── Status badges (HTTP codes) ───────────────────────────── */
+    .status {
+      display: inline-block;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .s2xx { background: rgba(166,227,161,.15); color: var(--green); }
+    .s4xx { background: rgba(250,179,135,.15); color: var(--orange); }
+    .s5xx { background: rgba(243,139,168,.15); color: var(--red); }
+
+    /* ── Info / warning callouts ──────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    .callout-note    { background: rgba(137,180,250,.07); border: 1px solid rgba(137,180,250,.2); }
+    .callout-warning { background: rgba(250,179,135,.07); border: 1px solid rgba(250,179,135,.2); }
+    .callout-danger  { background: rgba(243,139,168,.07); border: 1px solid rgba(243,139,168,.2); }
+
+    /* ── Architecture diagram box ─────────────────────────────── */
+    .arch-diagram {
+      background: #0a0d14;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 28px;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+      color: #8fa3bf;
+      margin: 16px 0 20px;
+    }
+
+    .arch-box   { color: var(--border); }
+    .arch-label { color: var(--text); }
+    .arch-sub   { color: var(--text-muted); }
+    .arch-arrow { color: var(--accent); }
+    .arch-comp  { color: var(--teal); }
+
+    /* ── State machine diagram ────────────────────────────────── */
+    .state-machine {
+      background: #0a0d14;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 28px;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.8;
+      margin: 16px 0 20px;
+    }
+
+    .state { color: var(--yellow); font-weight: 700; }
+    .arrow { color: var(--accent); }
+    .note  { color: var(--text-muted); font-style: italic; }
+
+    /* ── Trade-off comparison cards ───────────────────────────── */
+    .tradeoff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .tradeoff-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .tradeoff-card h5 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .tradeoff-card.chosen { border-color: rgba(166,227,161,.35); }
+    .tradeoff-card.chosen h5 { color: var(--green); }
+    .tradeoff-card.alt h5    { color: var(--text-muted); }
+
+    .tradeoff-card ul { padding-left: 16px; margin: 0; }
+    .tradeoff-card li { font-size: 12.5px; margin-bottom: 5px; }
+
+    /* ── Numbered flow steps ──────────────────────────────────── */
+    .flow-steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+      margin: 16px 0;
+    }
+
+    .flow-steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+
+    .flow-steps li::before {
+      content: counter(step);
+      background: var(--accent);
+      color: var(--bg);
+      font-size: 11px;
+      font-weight: 800;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── Open questions table special styling ─────────────────── */
+    .status-open   { color: var(--orange); font-weight: 600; }
+    .status-closed { color: var(--green);  font-weight: 600; }
+
+    /* ── Glossary ─────────────────────────────────────────────── */
+    .glossary-term { color: var(--accent2); font-weight: 700; }
+
+    /* ── Divider ──────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    /* ── Scrollbar (main) ─────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Print ────────────────────────────────────────────────── */
+    @media print {
+      #sidebar { display: none; }
+      #main { max-width: 100%; padding: 20px; }
+      body { background: white; color: black; }
+    }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      #main { padding: 24px 20px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<nav id="sidebar">
+  <span class="sidebar-brand">TaskFlow</span>
+  <div class="sidebar-title">System Design</div>
+  <ul class="toc-list">
+    <li><a href="#overview">1. Overview</a></li>
+    <li><a href="#goals">2. Goals &amp; Non-Goals</a></li>
+    <li class="toc-sub"><a href="#func-goals">Functional Goals</a></li>
+    <li class="toc-sub"><a href="#nonfunc-goals">Non-Functional Goals</a></li>
+    <li class="toc-sub"><a href="#non-goals">Non-Goals</a></li>
+    <li><a href="#background">3. Background &amp; Motivation</a></li>
+    <li><a href="#architecture">4. High-Level Architecture</a></li>
+    <li><a href="#components">5. Component Design</a></li>
+    <li class="toc-sub"><a href="#frontend">Frontend</a></li>
+    <li class="toc-sub"><a href="#backend">Backend API</a></li>
+    <li class="toc-sub"><a href="#database-comp">Database</a></li>
+    <li><a href="#data-model">6. Data Model</a></li>
+    <li class="toc-sub"><a href="#entities">Entities &amp; Relationships</a></li>
+    <li class="toc-sub"><a href="#schemas">Schema Reference</a></li>
+    <li class="toc-sub"><a href="#state-machine">Task State Machine</a></li>
+    <li><a href="#api">7. API Design</a></li>
+    <li class="toc-sub"><a href="#api-conventions">Conventions</a></li>
+    <li class="toc-sub"><a href="#api-auth">Authentication</a></li>
+    <li class="toc-sub"><a href="#api-users">Users</a></li>
+    <li class="toc-sub"><a href="#api-projects">Projects</a></li>
+    <li class="toc-sub"><a href="#api-tasks">Tasks</a></li>
+    <li class="toc-sub"><a href="#api-comments">Comments</a></li>
+    <li><a href="#security">8. Security Design</a></li>
+    <li class="toc-sub"><a href="#auth-flow">Auth Flow</a></li>
+    <li class="toc-sub"><a href="#authz">Authorization Model</a></li>
+    <li class="toc-sub"><a href="#jwt">JWT Strategy</a></li>
+    <li><a href="#storage">9. Storage Design</a></li>
+    <li><a href="#observability">10. Observability</a></li>
+    <li><a href="#errors">11. Error Handling</a></li>
+    <li><a href="#performance">12. Performance</a></li>
+    <li><a href="#deployment">13. Deployment</a></li>
+    <li><a href="#tradeoffs">14. Trade-offs</a></li>
+    <li><a href="#scalability">15. Scalability &amp; Future Work</a></li>
+    <li><a href="#open-questions">16. Open Questions</a></li>
+    <li><a href="#glossary">17. Glossary</a></li>
+  </ul>
+</nav>
+
+<!-- ══════════════════════ MAIN ══════════════════════════ -->
+<main id="main">
+
+  <!-- Document header -->
+  <div class="doc-header">
+    <h1><span>TaskFlow</span> — System Design Document</h1>
+    <div class="meta-grid">
+      <div class="meta-item"><div class="label">Version</div><div class="value">1.0</div></div>
+      <div class="meta-item"><div class="label">Status</div><div class="value">Living Document</div></div>
+      <div class="meta-item"><div class="label">Author</div><div class="value">Eric Kikunda</div></div>
+      <div class="meta-item"><div class="label">Created</div><div class="value">2026-05-27</div></div>
+      <div class="meta-item"><div class="label">Updated</div><div class="value">2026-05-27</div></div>
+    </div>
+  </div>
+
+  <!-- ── 1. Overview ──────────────────────────────────────────── -->
+  <section class="section" id="overview">
+    <h2><span class="num">1</span> Overview</h2>
+    <p>
+      TaskFlow is a full-stack task and project management application. Users register, create projects,
+      invite teammates, and track work items (tasks) through a defined lifecycle — from <code>TODO</code>
+      through <code>IN_PROGRESS</code> to <code>DONE</code>. Each task supports threaded comments,
+      priority levels, due dates, and assignee management.
+    </p>
+    <p>
+      The backend exposes a versioned REST API (Spring Boot 4, Java 21). The frontend is a single-page
+      application (React 19, TypeScript, Vite). Authentication is stateless JWT; persistence is
+      PostgreSQL in production and H2 in development.
+    </p>
+    <div class="callout callout-note">
+      <span class="callout-icon">📄</span>
+      <div><strong>Scope:</strong> This document covers the backend REST API and its data layer.
+      Frontend internals are covered in the frontend repository's <code>SYSTEM_DESIGN.md</code>.</div>
+    </div>
+  </section>
+
+  <!-- ── 2. Goals ─────────────────────────────────────────────── -->
+  <section class="section" id="goals">
+    <h2><span class="num">2</span> Goals &amp; Non-Goals</h2>
+
+    <h3 id="func-goals">2.1 Functional Goals</h3>
+    <ul>
+      <li>Users can register and log in; sessions are stateless (JWT).</li>
+      <li>Users can create projects and invite members by user ID.</li>
+      <li>Project members can create, assign, update status, and delete tasks within their projects.</li>
+      <li>Tasks support priority levels, due dates, and comments.</li>
+      <li>Admins can manage users, change roles, and perform bulk project-status updates.</li>
+      <li>All mutations are scoped to the authenticated user's project membership.</li>
+    </ul>
+
+    <h3 id="nonfunc-goals">2.2 Non-Functional Goals</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Property</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Security</strong></td><td>No unauthenticated access to resources; role + ownership checks on every mutation</td></tr>
+          <tr><td><strong>Correctness</strong></td><td>Task status transitions are enforced by a state machine, not ad-hoc checks</td></tr>
+          <tr><td><strong>Auditability</strong></td><td>Every request carries a correlation ID for log tracing</td></tr>
+          <tr><td><strong>Operability</strong></td><td>Health and metrics endpoints exposed without auth</td></tr>
+          <tr><td><strong>Testability</strong></td><td>Integration tests run against a real PostgreSQL container via Testcontainers</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="non-goals">2.3 Non-Goals (Explicit)</h3>
+    <ul>
+      <li><strong>Real-time / WebSocket updates.</strong> Clients poll; push notifications are out of scope.</li>
+      <li><strong>File attachments.</strong> No blob/S3 storage is provisioned.</li>
+      <li><strong>Soft deletes / audit trail.</strong> Deleted records are gone; no change history is maintained.</li>
+      <li><strong>Email notifications.</strong> User registration does not send a confirmation email.</li>
+      <li><strong>Multi-tenancy isolation below the project level.</strong> All data lives in one schema.</li>
+      <li><strong>Rate limiting.</strong> No per-IP or per-user throttle is implemented (see §15).</li>
+    </ul>
+  </section>
+
+  <!-- ── 3. Background ────────────────────────────────────────── -->
+  <section class="section" id="background">
+    <h2><span class="num">3</span> Background &amp; Motivation</h2>
+    <p>
+      The common alternative to a custom tracker is a SaaS tool (Jira, Linear, Asana). The driver for
+      building TaskFlow is educational: the project intentionally covers every layer of a production
+      Spring Boot application — security, persistence, service logic, observability, and testing —
+      in a single coherent codebase rather than isolated toy examples.
+    </p>
+    <p>
+      Design decisions are therefore biased toward production patterns (Flyway, Testcontainers, JWTs,
+      RFC 7807 error bodies) over simplicity shortcuts (in-memory auth, auto-DDL, generic error strings).
+    </p>
+  </section>
+
+  <!-- ── 4. Architecture ──────────────────────────────────────── -->
+  <section class="section" id="architecture">
+    <h2><span class="num">4</span> High-Level Architecture</h2>
+
+    <div class="arch-diagram">┌──────────────────────────────────────────────────────────────────┐
+│                         Client (Browser)                         │
+│         React 19 SPA — Vite dev server (port 5173)               │
+│         Axios + JWT interceptors,  React Router 7 nav            │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │  HTTPS  (Authorization: Bearer &lt;token&gt;)
+                            ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    Spring Boot API Server                        │
+│                    Java 21  ·  port 8080                         │
+│                                                                  │
+│  ┌─────────────┐   ┌──────────────┐   ┌───────────────────────┐ │
+│  │  Security   │   │  Controllers │   │  Services             │ │
+│  │  Filter     │──▶│  /api/v1/**  │──▶│  Business Logic       │ │
+│  │  Chain      │   │              │   │  State Machine        │ │
+│  │  (JWT)      │   │  MapStruct   │   │  Authorization Rules  │ │
+│  └─────────────┘   │  DTO mapping │   └──────────┬────────────┘ │
+│                    └──────────────┘              │              │
+│                                                  ▼              │
+│                                    ┌─────────────────────────┐  │
+│                                    │  Spring Data JPA        │  │
+│                                    │  Repositories           │  │
+│                                    │  (Hibernate ORM)        │  │
+│                                    └───────────┬─────────────┘  │
+└────────────────────────────────────────────────┼────────────────┘
+                                                 │  JDBC
+                                                 ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                PostgreSQL 16  (Docker Compose)                   │
+│                H2 in-memory              (dev / test profile)    │
+└──────────────────────────────────────────────────────────────────┘</div>
+
+    <h3>Data Flow Summary</h3>
+    <ol class="flow-steps">
+      <li>The browser sends a JWT in every <code>Authorization: Bearer</code> header.</li>
+      <li><code>JwtAuthenticationFilter</code> validates the token and populates the Spring <code>SecurityContext</code>.</li>
+      <li><code>@PreAuthorize</code> annotations on controller methods enforce role and project-membership checks before the method body runs.</li>
+      <li>Service methods contain business logic and enforce state-machine transitions.</li>
+      <li>Repositories talk to the database via Hibernate; MapStruct converts JPA entities to response DTOs before the controller serializes them.</li>
+      <li>All exceptions bubble to <code>GlobalExceptionHandler</code>, which produces RFC 7807 <code>ProblemDetail</code> responses.</li>
+    </ol>
+  </section>
+
+  <!-- ── 5. Component Design ──────────────────────────────────── -->
+  <section class="section" id="components">
+    <h2><span class="num">5</span> Component Design</h2>
+
+    <h3 id="frontend">5.1 Frontend (React SPA)</h3>
+    <blockquote>Detailed design in the frontend repo's <code>SYSTEM_DESIGN.md</code>.</blockquote>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Concern</th><th>Implementation</th></tr></thead>
+        <tbody>
+          <tr><td>Routing</td><td>React Router 7 (<code>ProtectedRoute</code>, <code>GuestRoute</code>)</td></tr>
+          <tr><td>Auth state</td><td><code>AuthContext</code> — persists token in localStorage</td></tr>
+          <tr><td>API layer</td><td>Typed Axios wrappers in <code>src/api/</code></td></tr>
+          <tr><td>UI</td><td>Unstyled components (CSS modules)</td></tr>
+          <tr><td>Build</td><td>Vite 8, TypeScript 6</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="backend">5.2 Backend API</h3>
+    <p>The backend is a layered Spring Boot application. Each layer has a single responsibility; dependencies only flow downward.</p>
+    <pre><code>Controller  →  Service  →  Repository  →  Database
+     ↑              ↑
+  DTOs/MapStruct  Domain Entities</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Package</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Controller</strong></td><td><code>controller/</code></td><td>HTTP contract: parse request, call service, map to DTO, return status code</td></tr>
+          <tr><td><strong>Service</strong></td><td><code>service/</code></td><td>Business rules, transactional boundaries, authorization enforcement</td></tr>
+          <tr><td><strong>Repository</strong></td><td><code>repository/</code></td><td>Data access via Spring Data JPA; custom JPQL/native queries</td></tr>
+          <tr><td><strong>Domain</strong></td><td><code>domain/</code></td><td>JPA entities and enums; no business logic</td></tr>
+          <tr><td><strong>DTO</strong></td><td><code>dto/</code></td><td>Immutable Java records for API request/response shapes</td></tr>
+          <tr><td><strong>Security</strong></td><td><code>security/</code></td><td>JWT parsing, <code>UserDetails</code>, custom SpEL authorization beans</td></tr>
+          <tr><td><strong>Config</strong></td><td><code>config/</code></td><td>Security filter chain, CORS, JWT properties, admin bootstrap</td></tr>
+          <tr><td><strong>Exception</strong></td><td><code>exception/</code></td><td>Custom exception types + <code>@RestControllerAdvice</code> handler</td></tr>
+          <tr><td><strong>Mapper</strong></td><td><code>mapper/</code></td><td>MapStruct compile-time entity↔DTO converters</td></tr>
+          <tr><td><strong>Filter</strong></td><td><code>filter/</code></td><td>Correlation ID injection (MDC)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="database-comp">5.3 Database</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Profile</th><th>Database</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>dev</code></td><td>H2 in-memory</td><td>Fast local iteration; schema created by Hibernate <code>validate</code></td></tr>
+          <tr><td><code>prod</code></td><td>PostgreSQL 16</td><td>Production; schema managed exclusively by Flyway</td></tr>
+          <tr><td><code>test</code></td><td>PostgreSQL 16 (Testcontainers)</td><td>Integration tests against a real engine</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 6. Data Model ────────────────────────────────────────── -->
+  <section class="section" id="data-model">
+    <h2><span class="num">6</span> Data Model</h2>
+
+    <h3 id="entities">6.1 Entities &amp; Relationships</h3>
+    <pre><code>User ──────────────────────────────────────────────────────┐
+  │                                                         │
+  │ (owner)                                                 │ (member — M:N)
+  ▼                                                         ▼
+Project ──── project_members (join table) ──────────── User
+  │
+  │ (1:N)
+  ▼
+Task ──── assignee_id (FK → User, nullable)
+  │
+  │ (1:N)
+  ▼
+Comment ──── author_id (FK → User)</code></pre>
+
+    <h3 id="schemas">6.2 Entity Field Reference</h3>
+
+    <h4>users</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>UUID</td><td>PK</td></tr>
+          <tr><td><code>email</code></td><td>VARCHAR</td><td>UNIQUE, NOT NULL</td></tr>
+          <tr><td><code>display_name</code></td><td>VARCHAR</td><td>NOT NULL</td></tr>
+          <tr><td><code>password_hash</code></td><td>VARCHAR</td><td>NOT NULL</td></tr>
+          <tr><td><code>role</code></td><td>VARCHAR (enum)</td><td>NOT NULL; ADMIN / MANAGER / MEMBER</td></tr>
+          <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>auto-set on insert</td></tr>
+          <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>auto-set on update</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>projects</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>UUID</td><td>PK</td></tr>
+          <tr><td><code>name</code></td><td>VARCHAR</td><td>NOT NULL</td></tr>
+          <tr><td><code>description</code></td><td>TEXT</td><td>nullable</td></tr>
+          <tr><td><code>status</code></td><td>VARCHAR (enum)</td><td>ACTIVE / ARCHIVED</td></tr>
+          <tr><td><code>owner_id</code></td><td>UUID</td><td>FK → users; NOT NULL</td></tr>
+          <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>auto-set</td></tr>
+          <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>auto-set</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>project_members</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+        <tbody>
+          <tr><td><code>project_id</code></td><td>UUID</td><td>FK → projects ON DELETE CASCADE</td></tr>
+          <tr><td><code>user_id</code></td><td>UUID</td><td>FK → users</td></tr>
+          <tr><td colspan="3"><em>Composite PK: (project_id, user_id)</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>tasks</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>UUID</td><td>PK</td></tr>
+          <tr><td><code>title</code></td><td>VARCHAR</td><td>NOT NULL</td></tr>
+          <tr><td><code>description</code></td><td>TEXT</td><td>nullable</td></tr>
+          <tr><td><code>status</code></td><td>VARCHAR (enum)</td><td>TODO / IN_PROGRESS / IN_REVIEW / DONE / CANCELLED</td></tr>
+          <tr><td><code>priority</code></td><td>VARCHAR (enum)</td><td>LOW / MEDIUM / HIGH / CRITICAL</td></tr>
+          <tr><td><code>due_date</code></td><td>DATE</td><td>nullable</td></tr>
+          <tr><td><code>project_id</code></td><td>UUID</td><td>FK → projects ON DELETE CASCADE; INDEX</td></tr>
+          <tr><td><code>assignee_id</code></td><td>UUID</td><td>FK → users; nullable; INDEX</td></tr>
+          <tr><td><code>reporter_id</code></td><td>UUID</td><td>FK → users; NOT NULL</td></tr>
+          <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>auto-set</td></tr>
+          <tr><td><code>updated_at</code></td><td>TIMESTAMPTZ</td><td>auto-set</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>comments</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>UUID</td><td>PK</td></tr>
+          <tr><td><code>body</code></td><td>TEXT</td><td>NOT NULL</td></tr>
+          <tr><td><code>task_id</code></td><td>UUID</td><td>FK → tasks ON DELETE CASCADE; INDEX</td></tr>
+          <tr><td><code>author_id</code></td><td>UUID</td><td>FK → users; NOT NULL</td></tr>
+          <tr><td><code>created_at</code></td><td>TIMESTAMPTZ</td><td>auto-set</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="state-machine">6.3 Task Status State Machine</h3>
+    <p>Valid transitions — attempts to jump outside these paths are rejected with <code>422 Unprocessable Entity</code>.</p>
+    <div class="state-machine">
+      <span class="state">TODO</span> <span class="arrow">──────────────────────────▶</span> <span class="state">IN_PROGRESS</span>
+                                                                   <span class="arrow">│</span>
+                                                                   <span class="arrow">▼</span>
+                                                              <span class="state">IN_REVIEW</span> <span class="arrow">──▶</span> <span class="state">DONE</span>
+                                                                   <span class="arrow">│</span>
+                                                                   <span class="arrow">▼</span>
+                                                              <span class="state">IN_PROGRESS</span>  <span class="note">(rework)</span>
+
+      <span class="note">Any state</span> <span class="arrow">──────────────────────────▶</span> <span class="state">CANCELLED</span>
+    </div>
+    <p>
+      The machine is encoded in <code>TaskStatus.canTransitionTo()</code> — a pure method on the enum,
+      making it testable without a Spring context.
+    </p>
+  </section>
+
+  <!-- ── 7. API Design ────────────────────────────────────────── -->
+  <section class="section" id="api">
+    <h2><span class="num">7</span> API Design</h2>
+
+    <h3 id="api-conventions">7.1 Conventions</h3>
+    <ul>
+      <li><strong>Base path:</strong> <code>/api/v1</code></li>
+      <li><strong>Auth:</strong> <code>Authorization: Bearer &lt;jwt&gt;</code> on all endpoints except <code>/auth/**</code></li>
+      <li><strong>Pagination:</strong> Query params <code>page</code> (0-indexed), <code>size</code>, <code>sort</code>. Response wrapped in <code>PageResponse&lt;T&gt;</code>.</li>
+      <li><strong>Error body:</strong> RFC 7807 <code>ProblemDetail</code> (<code>status</code>, <code>detail</code>, <code>type</code> as URI slug).</li>
+      <li><strong>Content-Type:</strong> <code>application/json</code> for all requests and responses.</li>
+      <li><strong>ID type:</strong> UUID strings.</li>
+    </ul>
+
+    <h3 id="api-auth">7.2 Authentication — <code>/api/v1/auth</code></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Request Body</th><th>Response</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-post">POST</span></td>
+            <td><code>/register</code></td><td>None</td>
+            <td><code>{ email, displayName, password }</code></td>
+            <td><code>{ token, user }</code></td>
+            <td><span class="status s2xx">201</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-post">POST</span></td>
+            <td><code>/login</code></td><td>None</td>
+            <td><code>{ email, password }</code></td>
+            <td><code>{ token, user }</code></td>
+            <td><span class="status s2xx">200</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>AuthResponse</code> shape:</p>
+    <pre><code class="code-json">{
+  "token": "&lt;jwt&gt;",
+  "user": {
+    "id": "&lt;uuid&gt;",
+    "email": "alice@example.com",
+    "displayName": "Alice",
+    "role": "MEMBER"
+  }
+}</code></pre>
+
+    <h3 id="api-users">7.3 Users — <code>/api/v1/users</code></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/</code></td><td>Any authenticated</td><td>Paginated user list</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/{id}</code></td><td>Any authenticated</td><td>Single user</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/</code></td><td>ADMIN only</td><td>Create user</td></tr>
+          <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/{id}/role</code></td><td>ADMIN only</td><td>Update user role</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="api-projects">7.4 Projects — <code>/api/v1/projects</code></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/</code></td><td>Member of any project</td><td>List caller's projects</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/</code></td><td>Authenticated</td><td>Create project</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/{id}</code></td><td>Member or ADMIN</td><td>Get project detail</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/{id}/members</code></td><td>Member or ADMIN</td><td>List project members</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/{id}/members/{userId}</code></td><td>Owner or ADMIN</td><td>Add member</td></tr>
+          <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/{id}/members/{userId}</code></td><td>Owner or ADMIN</td><td>Remove member</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/{id}/archive</code></td><td>Owner or ADMIN</td><td>Archive project</td></tr>
+          <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/batch-status</code></td><td>ADMIN only</td><td>Bulk status update</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="api-tasks">7.5 Tasks — <code>/api/v1/projects/{projectId}/tasks</code></h3>
+    <p>Tasks are always scoped under a parent project — the URL nesting enforces this structurally.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/</code></td><td>Member / ADMIN</td><td>List tasks (optional <code>?status=</code> filter)</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/</code></td><td>Member / ADMIN</td><td>Create task</td></tr>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/{taskId}</code></td><td>Member / ADMIN</td><td>Get task detail</td></tr>
+          <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/{taskId}/status</code></td><td>Member / ADMIN</td><td>Transition task status</td></tr>
+          <tr><td><span class="badge badge-put">PUT</span></td><td><code>/{taskId}/assignee</code></td><td>Member / ADMIN</td><td>Assign task</td></tr>
+          <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/{taskId}/assignee</code></td><td>Member / ADMIN</td><td>Unassign task</td></tr>
+          <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/{taskId}</code></td><td>Member / ADMIN</td><td>Delete task</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="api-comments">7.6 Comments — <code>/api/v1/tasks/{taskId}/comments</code></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-get">GET</span></td><td><code>/</code></td><td>Member / ADMIN</td><td>List all comments on task</td></tr>
+          <tr><td><span class="badge badge-post">POST</span></td><td><code>/</code></td><td>Member / ADMIN</td><td>Add comment</td></tr>
+          <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/{commentId}</code></td><td>Author or ADMIN</td><td>Delete comment</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 8. Security ──────────────────────────────────────────── -->
+  <section class="section" id="security">
+    <h2><span class="num">8</span> Security Design</h2>
+
+    <h3 id="auth-flow">8.1 Authentication Flow</h3>
+    <ol class="flow-steps">
+      <li><strong>Client</strong> — <code>POST /api/v1/auth/login { email, password }</code></li>
+      <li><strong>AuthService</strong> — <code>DaoAuthenticationProvider.authenticate()</code> → BCrypt password verify</li>
+      <li><strong>JwtService</strong> — <code>generateToken(email)</code> → signed HMAC-SHA256 JWT returned to client</li>
+      <li><strong>Client</strong> — stores token in localStorage; attaches on every subsequent request as <code>Authorization: Bearer &lt;token&gt;</code></li>
+      <li><strong>JwtAuthFilter</strong> (runs before every request) — extracts token → <code>JwtService.extractEmail()</code> → <code>UserDetailsServiceImpl.loadUserByUsername()</code> → sets <code>SecurityContextHolder</code></li>
+      <li><strong>Controller</strong> — <code>@PreAuthorize</code> checks role / project membership</li>
+    </ol>
+
+    <h3 id="authz">8.2 Authorization Model</h3>
+    <p>Three-layer authorization:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Mechanism</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Role-based</strong></td><td><code>hasRole('ADMIN')</code> in SpEL</td><td>Only ADMIN can create users</td></tr>
+          <tr><td><strong>Project ownership</strong></td><td><code>@projectSecurity.isOwner(id, auth.name)</code></td><td>Only owner can archive a project</td></tr>
+          <tr><td><strong>Project membership</strong></td><td><code>@projectSecurity.isMember(id, auth.name)</code></td><td>Only members can create tasks</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <code>ProjectSecurityService</code> is a Spring bean registered as <code>"projectSecurity"</code> and referenced
+      from SpEL expressions. It queries the database on each call — no caching — so authorization is always
+      consistent with current membership state.
+    </p>
+    <div class="callout callout-note">
+      <span class="callout-icon">ℹ️</span>
+      <div>Comment deletion is the one exception: the service layer enforces author-only delete (with ADMIN bypass), rather than a <code>@PreAuthorize</code> expression, because the check requires loading the comment entity first.</div>
+    </div>
+
+    <h3 id="jwt">8.3 JWT Strategy</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Algorithm</td><td>HMAC-SHA256 (HS256)</td></tr>
+          <tr><td>Claims</td><td><code>sub</code> (email), <code>iat</code>, <code>exp</code></td></tr>
+          <tr><td>Expiry</td><td>24 hours (<code>app.jwt.expiry-ms</code>)</td></tr>
+          <tr><td>Secret</td><td>From <code>JWT_SECRET</code> env var (prod); dev default in properties</td></tr>
+          <tr><td>Storage</td><td>Stateless — no server-side session; no token revocation</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-warning">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Known limitation:</strong> There is no token revocation mechanism. A stolen token is valid until expiry. Mitigation approaches (Redis token blacklist, short expiry + refresh tokens) are listed in §15.</div>
+    </div>
+
+    <h3>8.4 CORS</h3>
+    <p>
+      CORS is configured in <code>SecurityConfig</code> via Spring's <code>CorsConfigurationSource</code>.
+      Allowed origins are driven by <code>app.cors.allowed-origins</code> (dev default: <code>http://localhost:5173</code>).
+      In production this must be the exact frontend origin — wildcards are not acceptable when credentials (JWT) are involved.
+    </p>
+
+    <h3>8.5 Other Security Hardening</h3>
+    <ul>
+      <li><code>SessionCreationPolicy.STATELESS</code> — no <code>JSESSIONID</code> cookie is ever created.</li>
+      <li><strong>CSRF disabled</strong> — CSRF attacks require a browser cookie; JWT in <code>Authorization</code> header is not auto-sent by the browser, so CSRF is not a threat.</li>
+      <li><code>HttpStatusEntryPoint(UNAUTHORIZED)</code> — unauthenticated requests receive 401, not a redirect to a login page.</li>
+      <li><code>spring.jpa.open-in-view=false</code> — prevents lazy Hibernate sessions from leaking across the HTTP layer.</li>
+    </ul>
+  </section>
+
+  <!-- ── 9. Storage ────────────────────────────────────────────── -->
+  <section class="section" id="storage">
+    <h2><span class="num">9</span> Storage Design</h2>
+
+    <h3>9.1 Migration Strategy</h3>
+    <p>
+      Schema is managed exclusively by <strong>Flyway</strong>. Hibernate's <code>ddl-auto</code> is set
+      to <code>validate</code> in production — Hibernate will fail fast on startup if the schema doesn't
+      match the entity model, but will never alter it.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Environment</th><th>Schema source</th><th>Flyway enabled</th></tr></thead>
+        <tbody>
+          <tr><td>dev</td><td>Hibernate auto-create</td><td>No</td></tr>
+          <tr><td>test</td><td>Flyway (Testcontainers)</td><td>Yes</td></tr>
+          <tr><td>prod</td><td>Flyway (PostgreSQL)</td><td>Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Migration naming convention: <code>V{N}__{description}.sql</code></p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Migration</th><th>Tables created</th></tr></thead>
+        <tbody>
+          <tr><td>V1</td><td><code>users</code></td></tr>
+          <tr><td>V2</td><td><code>projects</code>, <code>project_members</code></td></tr>
+          <tr><td>V3</td><td><code>tasks</code></td></tr>
+          <tr><td>V4</td><td><code>comments</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>9.2 Indexing Strategy</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Index</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td><code>tasks.project_id</code></td><td>Every task query is scoped to a project</td></tr>
+          <tr><td><code>tasks.assignee_id</code></td><td>"Tasks assigned to me" queries</td></tr>
+          <tr><td><code>tasks.status</code></td><td>Filtered task list by status</td></tr>
+          <tr><td><code>comments.task_id</code></td><td>Comments are always fetched for a specific task</td></tr>
+          <tr><td><code>users.email</code> (UNIQUE)</td><td>Login lookup + uniqueness enforcement</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>9.3 UUID Primary Keys</h3>
+    <p>All PKs use <code>GenerationType.UUID</code>.</p>
+    <ul>
+      <li><strong>Pro:</strong> IDs are safe to expose in URLs without enumeration risk; work across distributed inserts.</li>
+      <li><strong>Con:</strong> UUIDs are 16 bytes vs. 4–8 bytes for integers; random UUIDs cause B-tree page splits. Use UUID v7 (time-ordered) if this becomes a bottleneck.</li>
+    </ul>
+
+    <h3>9.4 JDBC Batch Configuration</h3>
+    <pre><code>spring.jpa.properties.hibernate.jdbc.batch_size=500
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.order_updates=true</code></pre>
+    <p>
+      Hibernate groups inserts/updates of the same type into a single JDBC batch call.
+      <code>order_inserts/updates=true</code> ensures statements are sorted by type so batching
+      is effective.
+    </p>
+  </section>
+
+  <!-- ── 10. Observability ─────────────────────────────────────── -->
+  <section class="section" id="observability">
+    <h2><span class="num">10</span> Observability</h2>
+
+    <h3>10.1 Correlation IDs</h3>
+    <p><code>CorrelationFilter</code> runs at <code>Ordered.HIGHEST_PRECEDENCE</code>. On every request it:</p>
+    <ol>
+      <li>Reads <code>X-Correlation-ID</code> header (or generates a UUID if absent).</li>
+      <li>Stores it in SLF4J MDC under key <code>correlationId</code>.</li>
+      <li>Echoes it back in the response as <code>X-Correlation-ID</code>.</li>
+    </ol>
+    <p>
+      Every log line emitted during that request includes the correlation ID. When a client reports an
+      error, they can provide this header value to pinpoint the exact request trace in logs.
+    </p>
+
+    <h3>10.2 Metrics</h3>
+    <p>Powered by <strong>Micrometer</strong> (Spring Boot Actuator auto-configuration).</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Type</th><th>Tags</th><th>Where emitted</th></tr></thead>
+        <tbody>
+          <tr><td><code>auth.registrations</code></td><td>Counter</td><td>—</td><td><code>AuthService</code></td></tr>
+          <tr><td><code>tasks.created</code></td><td>Counter</td><td><code>priority=&lt;val&gt;</code></td><td><code>TaskService</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Micrometer is backend-agnostic. Exporting to Prometheus, Datadog, or CloudWatch requires only a dependency change — no application code changes.</p>
+
+    <h3>10.3 Health &amp; Actuator</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Auth required</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>/actuator/health</code></td><td>No</td><td>Liveness / readiness probe</td></tr>
+          <tr><td><code>/actuator/info</code></td><td>No</td><td>Build info, version</td></tr>
+          <tr><td><code>/actuator/metrics</code></td><td>No</td><td>All registered Micrometer meters</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-warning">
+      <span class="callout-icon">⚠️</span>
+      <div>Exposing <code>/actuator/metrics</code> without auth is acceptable in a private network. In a public deployment, consider securing it behind a management port or a sidecar.</div>
+    </div>
+  </section>
+
+  <!-- ── 11. Error Handling ────────────────────────────────────── -->
+  <section class="section" id="errors">
+    <h2><span class="num">11</span> Error Handling</h2>
+
+    <h3>11.1 Error Body Format (RFC 7807)</h3>
+    <p>All errors return a <code>ProblemDetail</code> JSON body:</p>
+    <pre><code class="code-json">{
+  "type": "https://taskflow.local/errors/resource-not-found",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Task with id 'abc-123' not found"
+}</code></pre>
+    <p>Using a standard format means clients can parse errors generically rather than handling each endpoint's unique error shape.</p>
+
+    <h3>11.2 Exception Taxonomy</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Exception class</th><th>HTTP Status</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>ResourceNotFoundException</code></td><td><span class="status s4xx">404</span></td><td>Entity looked up by ID doesn't exist</td></tr>
+          <tr><td><code>BusinessRuleException</code></td><td><span class="status s4xx">422</span></td><td>Valid request but violates a business rule (e.g., invalid status transition)</td></tr>
+          <tr><td><code>ConflictException</code></td><td><span class="status s4xx">409</span></td><td>Duplicate resource (e.g., email already registered)</td></tr>
+          <tr><td><code>ForbiddenException</code></td><td><span class="status s4xx">403</span></td><td>Authenticated but not authorized</td></tr>
+          <tr><td><code>MethodArgumentNotValidException</code></td><td><span class="status s4xx">400</span></td><td>Bean Validation (<code>@Valid</code>) failure on request body</td></tr>
+          <tr><td><code>AuthenticationException</code></td><td><span class="status s4xx">401</span></td><td>Missing or invalid JWT</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 12. Performance ───────────────────────────────────────── -->
+  <section class="section" id="performance">
+    <h2><span class="num">12</span> Performance Considerations</h2>
+
+    <h3>12.1 N+1 Query Prevention</h3>
+    <p>
+      Hibernate's default lazy loading causes N+1 queries: fetching a list of 20 tasks and accessing
+      <code>task.getAssignee()</code> issues 20 separate <code>SELECT</code> statements.
+      TaskFlow prevents this with <code>@EntityGraph</code> annotations on repository methods,
+      which generate a single <code>JOIN FETCH</code> query.
+    </p>
+    <p>Example: <code>TaskRepository.findByProjectId(id, pageable)</code> eagerly loads <code>assignee</code> and <code>reporter</code> in one query.</p>
+
+    <h3>12.2 Batch Project Status Update</h3>
+    <p>
+      <code>PATCH /api/v1/projects/batch-status</code> processes updates in chunks (default: 100 records)
+      using a <code>@Modifying</code> JPQL <code>UPDATE</code> query. Chunking limits transaction size:
+      a single transaction updating 100,000 rows holds locks for the entire duration. Smaller transactions
+      reduce lock contention at the cost of partial failure visibility.
+    </p>
+
+    <h3>12.3 Read-Only Transactions</h3>
+    <p>
+      All service methods default to <code>@Transactional(readOnly = true)</code>. This tells Hibernate
+      to skip dirty-checking on managed entities at flush time — a measurable win for read-heavy workloads.
+      Mutating methods override to <code>@Transactional</code> (read-write).
+    </p>
+
+    <h3>12.4 <code>open-in-view=false</code></h3>
+    <p>
+      Spring Boot defaults <code>open-in-view</code> to <code>true</code>, which keeps the Hibernate
+      session open for the entire HTTP request. This enables lazy loading in the view layer but hides
+      performance problems. TaskFlow disables it, forcing all data fetching to happen explicitly within
+      <code>@Transactional</code> service methods.
+    </p>
+  </section>
+
+  <!-- ── 13. Deployment ───────────────────────────────────────── -->
+  <section class="section" id="deployment">
+    <h2><span class="num">13</span> Deployment</h2>
+
+    <h3>13.1 Environment Overview</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Environment</th><th>Backend</th><th>Database</th><th>Frontend</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Local dev</td>
+            <td><code>./mvnw spring-boot:run</code> (port 8080)</td>
+            <td>H2 in-memory</td>
+            <td><code>npm run dev</code> (port 5173, Vite)</td>
+          </tr>
+          <tr>
+            <td>Docker prod</td>
+            <td><code>docker-compose up</code></td>
+            <td>PostgreSQL 16 container</td>
+            <td>Static files served by nginx or CDN</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>13.2 Docker Compose (Production)</h3>
+    <p><code>docker-compose.yml</code> defines two services:</p>
+    <ul>
+      <li><strong><code>db</code></strong>: <code>postgres:16-alpine</code>, persists data to a named volume.</li>
+      <li><strong><code>api</code></strong>: built from <code>Dockerfile</code>, depends on <code>db</code>, exposes port 8080.</li>
+    </ul>
+    <p>The <code>prod</code> Spring profile is activated via <code>SPRING_PROFILES_ACTIVE=prod</code>. Flyway runs on startup and applies pending migrations before the application accepts traffic.</p>
+
+    <h3>13.3 Required Environment Variables</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Required in</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWT_SECRET</code></td><td>prod</td><td>HMAC-SHA256 signing key (min 256 bits, base64-encoded)</td></tr>
+          <tr><td><code>DB_URL</code></td><td>prod</td><td>JDBC connection string</td></tr>
+          <tr><td><code>DB_USERNAME</code></td><td>prod</td><td>Database user</td></tr>
+          <tr><td><code>DB_PASSWORD</code></td><td>prod</td><td>Database password</td></tr>
+          <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td>prod</td><td>Frontend origin (e.g., <code>https://taskflow.example.com</code>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-danger">
+      <span class="callout-icon">🔒</span>
+      <div><code>.env.example</code> documents all variables. Never commit <code>.env</code> to version control.</div>
+    </div>
+
+    <h3>13.4 Admin Bootstrap</h3>
+    <p>
+      On startup, <code>AdminBootstrapRunner</code> checks whether an ADMIN user exists. If not, it creates
+      <code>admin@taskflow.local</code> with a randomly generated password logged at WARN level. This ensures
+      the application is accessible after a fresh deployment without manual database seeding.
+    </p>
+  </section>
+
+  <!-- ── 14. Trade-offs ───────────────────────────────────────── -->
+  <section class="section" id="tradeoffs">
+    <h2><span class="num">14</span> Trade-offs &amp; Alternatives Considered</h2>
+
+    <h3>14.1 JWT vs. Session Cookies</h3>
+    <div class="tradeoff-grid">
+      <div class="tradeoff-card chosen">
+        <h5>JWT (Chosen)</h5>
+        <ul>
+          <li>Stateless — no server memory per user</li>
+          <li>Any instance validates any token</li>
+          <li>Horizontal scaling without shared state</li>
+          <li><em>Con:</em> No revocation without extra infrastructure</li>
+        </ul>
+      </div>
+      <div class="tradeoff-card alt">
+        <h5>Server-side Sessions</h5>
+        <ul>
+          <li>Stateful — session store required</li>
+          <li>All instances must share store (Redis)</li>
+          <li>Easy revocation (delete from store)</li>
+          <li><em>Con:</em> Extra operational complexity</li>
+        </ul>
+      </div>
+    </div>
+    <p><strong>Decision:</strong> Stateless horizontal scaling is simpler at this stage. Revocation support can be added with a Redis blacklist if needed.</p>
+
+    <h3>14.2 H2 vs. PostgreSQL for Development</h3>
+    <p>
+      H2's in-memory mode makes local dev startup instant (no Docker dependency). The risk is H2/PostgreSQL
+      behavioral divergence hiding bugs. Mitigation: integration tests always run against a real PostgreSQL
+      container (Testcontainers), so divergence is caught before merge.
+    </p>
+
+    <h3>14.3 Flyway vs. Hibernate <code>auto-DDL</code></h3>
+    <p>
+      <code>ddl-auto=update</code> is convenient but dangerous in production: it can silently add columns but
+      will never drop them, and its behavior on type changes is undefined. Flyway gives explicit,
+      version-controlled, peer-reviewed migrations. The cost is an extra SQL file per schema change — worth it.
+    </p>
+
+    <h3>14.4 MapStruct vs. Manual Mapping vs. ModelMapper</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>MapStruct (Chosen)</th><th>Manual</th><th>ModelMapper</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Performance</strong></td><td>Compile-time generated, zero reflection</td><td>Same</td><td>Reflection at runtime</td></tr>
+          <tr><td><strong>Type safety</strong></td><td>Compile errors on mismatched fields</td><td>Compile errors</td><td>Runtime errors</td></tr>
+          <tr><td><strong>Boilerplate</strong></td><td>Minimal (interface + annotations)</td><td>Verbose</td><td>Minimal</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>MapStruct gives the safety of manual mapping with near-zero boilerplate. ModelMapper is convenient but runtime reflection masks mapping errors until they surface in production.</p>
+
+    <h3>14.5 UUID vs. Auto-increment PKs</h3>
+    <p>
+      UUIDs allow ID generation client-side or in distributed systems without a central sequence. They are
+      also safe to expose in URLs (no sequential enumeration). Downside: 16-byte random values create B-tree
+      fragmentation under high insert rates. At TaskFlow's scale this is irrelevant; for future mitigation
+      see UUID v7 (time-ordered).
+    </p>
+
+    <h3>14.6 <code>@PreAuthorize</code> SpEL vs. Service-layer Checks</h3>
+    <p>
+      Most authorization is enforced at the controller boundary via <code>@PreAuthorize</code>. This fails
+      fast before any service code runs. The exception is comment deletion, where the business rule requires
+      loading the entity first (to compare <code>comment.author == caller</code>). This check lives in the
+      service layer to keep the controller free of entity-loading logic.
+    </p>
+  </section>
+
+  <!-- ── 15. Scalability ──────────────────────────────────────── -->
+  <section class="section" id="scalability">
+    <h2><span class="num">15</span> Scalability Limits &amp; Future Work</h2>
+
+    <h3>Current Bottlenecks (in order of likely impact)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Bottleneck</th><th>Limit</th><th>Mitigation path</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Single PostgreSQL instance</strong></td><td>Vertical limit; no read replicas</td><td>Add read replicas; route read-only queries via secondary datasource</td></tr>
+          <tr><td><strong>No token revocation</strong></td><td>Stolen JWTs valid for 24 hours</td><td>Short-lived access tokens (15 min) + Redis-backed refresh tokens</td></tr>
+          <tr><td><strong>No rate limiting</strong></td><td>Any client can hammer the API</td><td>API gateway (Kong, AWS API Gateway) or Spring's Bucket4j library</td></tr>
+          <tr><td><strong>No caching</strong></td><td>Every membership check hits the DB</td><td>Cache <code>ProjectSecurityService</code> in Caffeine/Redis with invalidation on membership change</td></tr>
+          <tr><td><strong>In-process batch processing</strong></td><td>Batch updates block the request thread</td><td>Offload to a job queue (Spring Batch, AWS SQS) for very large datasets</td></tr>
+          <tr><td><strong>No connection pool tuning</strong></td><td>HikariCP uses defaults</td><td>Tune to <code>(core_count × 2) + effective_spindle_count</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Planned Features</h3>
+    <ul>
+      <li><strong>Module 7 — Observability:</strong> Structured JSON logging, Prometheus scrape endpoint, distributed tracing (Micrometer Tracing + Zipkin/Jaeger).</li>
+      <li><strong>Module 8 — Async Events:</strong> Spring Application Events or messaging (RabbitMQ/Kafka) for post-mutation side effects (email notifications, audit log).</li>
+      <li><strong>Module 9 — Refresh Tokens:</strong> Short-lived access tokens + revocable refresh tokens stored in the database.</li>
+      <li><strong>Module 10 — Rate Limiting:</strong> Per-user request throttling using Bucket4j.</li>
+    </ul>
+  </section>
+
+  <!-- ── 16. Open Questions ────────────────────────────────────── -->
+  <section class="section" id="open-questions">
+    <h2><span class="num">16</span> Open Questions</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Question</th><th>Owner</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Should archived projects be excluded from member queries by default, or filtered client-side?</td>
+            <td>Backend</td>
+            <td><span class="status-open">Open</span></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Task <code>dueDate</code> is stored as <code>DATE</code> (no timezone). If users are in multiple timezones, should this be <code>TIMESTAMPTZ</code>?</td>
+            <td>Backend</td>
+            <td><span class="status-open">Open</span></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Comment editing: should comments be immutable after creation, or allow edits within a time window (e.g., 5 minutes)?</td>
+            <td>Product</td>
+            <td><span class="status-open">Open</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Should <code>MANAGER</code> role have a distinct permission set from <code>MEMBER</code>, or is the current binary (member / admin) sufficient?</td>
+            <td>Product</td>
+            <td><span class="status-open">Open</span></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Pagination on comments: currently a flat list. Will tasks with thousands of comments require cursor-based pagination?</td>
+            <td>Backend</td>
+            <td><span class="status-open">Open</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 17. Glossary ─────────────────────────────────────────── -->
+  <section class="section" id="glossary">
+    <h2><span class="num">17</span> Glossary</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td><span class="glossary-term">JWT</span></td><td>JSON Web Token — a signed, self-contained token used for stateless authentication</td></tr>
+          <tr><td><span class="glossary-term">JJWT</span></td><td>Java JWT library (io.jsonwebtoken) used for signing and parsing JWTs</td></tr>
+          <tr><td><span class="glossary-term">Flyway</span></td><td>Database migration tool that manages schema version history</td></tr>
+          <tr><td><span class="glossary-term">MapStruct</span></td><td>Compile-time annotation processor that generates type-safe bean mappers</td></tr>
+          <tr><td><span class="glossary-term">Micrometer</span></td><td>Vendor-neutral metrics instrumentation library for the JVM</td></tr>
+          <tr><td><span class="glossary-term">MDC</span></td><td>Mapped Diagnostic Context — SLF4J thread-local key-value store included in log output</td></tr>
+          <tr><td><span class="glossary-term">ProblemDetail</span></td><td>RFC 7807 standard JSON error body format</td></tr>
+          <tr><td><span class="glossary-term">SpEL</span></td><td>Spring Expression Language — used in <code>@PreAuthorize</code> annotations</td></tr>
+          <tr><td><span class="glossary-term">Testcontainers</span></td><td>Java library that spins up real Docker containers (e.g., PostgreSQL) during tests</td></tr>
+          <tr><td><span class="glossary-term">EntityGraph</span></td><td>JPA hint that forces eager loading of specified associations to avoid N+1 queries</td></tr>
+          <tr><td><span class="glossary-term">N+1 problem</span></td><td>When loading N entities and accessing a lazy association results in N additional queries</td></tr>
+          <tr><td><span class="glossary-term">CORS</span></td><td>Cross-Origin Resource Sharing — browser security policy; must be explicitly configured for the SPA origin</td></tr>
+          <tr><td><span class="glossary-term">BCrypt</span></td><td>Adaptive password hashing algorithm with a configurable cost factor</td></tr>
+          <tr><td><span class="glossary-term">Correlation ID</span></td><td>A UUID attached to every request and echoed in every log line, enabling full request trace reconstruction</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // Highlight active ToC link based on scroll position
+  const sections = document.querySelectorAll('section[id], h2[id], h3[id]');
+  const links = document.querySelectorAll('#sidebar .toc-list a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id || entry.target.closest('section')?.id;
+        links.forEach(l => {
+          l.classList.toggle('active', l.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  document.querySelectorAll('section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
