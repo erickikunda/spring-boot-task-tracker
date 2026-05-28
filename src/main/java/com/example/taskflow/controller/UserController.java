@@ -2,9 +2,12 @@ package com.example.taskflow.controller;
 
 import com.example.taskflow.dto.CreateUserRequest;
 import com.example.taskflow.dto.PageResponse;
+import com.example.taskflow.dto.ProjectResponse;
 import com.example.taskflow.dto.UpdateRoleRequest;
 import com.example.taskflow.dto.UserResponse;
+import com.example.taskflow.mapper.ProjectMapper;
 import com.example.taskflow.mapper.UserMapper;
+import com.example.taskflow.service.ProjectService;
 import com.example.taskflow.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -21,7 +25,9 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final ProjectService projectService;
     private final UserMapper userMapper;
+    private final ProjectMapper projectMapper;
 
     @GetMapping
     public PageResponse<UserResponse> list(Pageable pageable) {
@@ -46,5 +52,14 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateRole(@PathVariable UUID id, @RequestBody @Valid UpdateRoleRequest req) {
         return userMapper.toResponse(userService.updateRole(id, req.role()));
+    }
+
+    @GetMapping("/{id}/projects")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<ProjectResponse> projects(@PathVariable UUID id) {
+        var user = userService.findById(id);
+        return projectService.findByMember(user).stream()
+                .map(projectMapper::toResponse)
+                .toList();
     }
 }
