@@ -22,13 +22,13 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @EntityGraph(attributePaths = {"owner"})
     List<Project> findByOwner(User owner);
 
-    // owner is a ManyToOne — safe to JOIN FETCH. members is a collection — do NOT add it here.
+    // owner is a ManyToOne — safe to JOIN FETCH. memberships is a collection — do NOT add it here.
     @EntityGraph(attributePaths = {"owner"})
-    List<Project> findByMembersContaining(User user);
+    List<Project> findByMemberships_User(User user);
 
     boolean existsByIdAndOwner(UUID id, User owner);
 
-    boolean existsByIdAndMembersContaining(UUID id, User user);
+    boolean existsByIdAndMemberships_User(UUID id, User user);
 
     // CAST(id AS VARCHAR) is ANSI SQL and works with both H2 and PostgreSQL.
     // clearAutomatically evicts stale first-level cache entries after the bulk UPDATE.

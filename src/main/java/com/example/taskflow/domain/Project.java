@@ -39,16 +39,9 @@ public class Project {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    // Use Set, never List: Hibernate deletes ALL rows from the join table and re-inserts
-    // them on every modification when the collection is a List (the "bag delete" problem).
     @Builder.Default
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "project_members",
-        joinColumns = @JoinColumn(name = "project_id"),
-        inverseJoinColumns = @JoinColumn(name = "user_id")
-    )
-    private Set<User> members = new HashSet<>();
+    @OneToMany(mappedBy = "project", fetch = FetchType.LAZY)
+    private Set<ProjectMember> memberships = new HashSet<>();
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

@@ -1,11 +1,14 @@
 package com.example.taskflow.service;
 
 import com.example.taskflow.domain.Project;
+import com.example.taskflow.domain.ProjectMember;
+import com.example.taskflow.domain.ProjectMemberId;
 import com.example.taskflow.domain.ProjectStatus;
 import com.example.taskflow.domain.User;
 import com.example.taskflow.dto.BatchUpdateResult;
 import com.example.taskflow.exception.BusinessRuleException;
 import com.example.taskflow.exception.ResourceNotFoundException;
+import com.example.taskflow.repository.ProjectMemberRepository;
 import com.example.taskflow.repository.ProjectRepository;
 import com.example.taskflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import java.util.UUID;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
 
     public Project findById(UUID id) {
@@ -34,26 +38,27 @@ public class ProjectService {
     }
 
     public List<Project> findByMember(User member) {
-        return projectRepository.findByMembersContaining(member);
+        return projectRepository.findByMemberships_User(member);
     }
 
     public List<User> findMembers(UUID projectId) {
         var project = findById(projectId);
-        return project.getMembers().stream()
+        return projectMemberRepository.findByProject(project).stream()
+                .map(ProjectMember::getUser)
                 .sorted(Comparator.comparing(User::getDisplayName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 
     @Transactional
     public Project create(String name, String description, User owner) {
-        var project = Project.builder()
+        var project = projectRepository.save(Project.builder()
                 .name(name)
                 .description(description)
                 .status(ProjectStatus.ACTIVE)
                 .owner(owner)
-                .build();
-        project.getMembers().add(owner);  // owner is always a member
-        return projectRepository.save(project);
+                .build());
+        projectMemberRepository.save(new ProjectMember(project, owner));
+        return project;
     }
 
     @Transactional
@@ -61,8 +66,10 @@ public class ProjectService {
         var project = findById(projectId);
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
-        project.getMembers().add(user);  // Set semantics: idempotent
-        projectRepository.save(project);
+        var memberId = new ProjectMemberId(projectId, userId);
+        if (!projectMemberRepository.existsById(memberId)) {
+            projectMemberRepository.save(new ProjectMember(project, user));
+        }
     }
 
     @Transactional
@@ -71,10 +78,9 @@ public class ProjectService {
         if (project.getOwner().getId().equals(userId)) {
             throw new BusinessRuleException("Cannot remove the project owner from members");
         }
-        var user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
-        project.getMembers().remove(user);
-        projectRepository.save(project);
+        projectMemberRepository.deleteById(new ProjectMemberId(projectId, userId));
     }
 
     @Transactional

@@ -23,12 +23,12 @@ class ProjectRepositoryTest {
     }
 
     private Project savedProject(User owner, User... members) {
-        var project = Project.builder()
-                .name("P").status(ProjectStatus.ACTIVE).owner(owner).build();
+        var project = em.persistAndFlush(Project.builder()
+                .name("P").status(ProjectStatus.ACTIVE).owner(owner).build());
         for (var member : members) {
-            project.getMembers().add(member);
+            em.persistAndFlush(new ProjectMember(project, member));
         }
-        return em.persistAndFlush(project);
+        return project;
     }
 
     @Test
@@ -51,23 +51,23 @@ class ProjectRepositoryTest {
     }
 
     @Test
-    void existsByIdAndMembersContaining_returnsTrueForAddedMember() {
+    void existsByIdAndMemberships_User_returnsTrueForAddedMember() {
         var owner = savedUser("owner@example.com");
         var member = savedUser("member@example.com");
         var project = savedProject(owner, member);
         em.clear();
 
-        assertThat(projectRepository.existsByIdAndMembersContaining(project.getId(), member)).isTrue();
+        assertThat(projectRepository.existsByIdAndMemberships_User(project.getId(), member)).isTrue();
     }
 
     @Test
-    void existsByIdAndMembersContaining_returnsFalseForNonMember() {
+    void existsByIdAndMemberships_User_returnsFalseForNonMember() {
         var owner = savedUser("owner@example.com");
         var stranger = savedUser("stranger@example.com");
         var project = savedProject(owner);
         em.clear();
 
-        assertThat(projectRepository.existsByIdAndMembersContaining(project.getId(), stranger)).isFalse();
+        assertThat(projectRepository.existsByIdAndMemberships_User(project.getId(), stranger)).isFalse();
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.example.taskflow.service;
 import com.example.taskflow.domain.*;
 import com.example.taskflow.exception.BusinessRuleException;
 import com.example.taskflow.exception.ResourceNotFoundException;
+import com.example.taskflow.repository.ProjectMemberRepository;
 import com.example.taskflow.repository.ProjectRepository;
 import com.example.taskflow.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.*;
 class ProjectServiceTest {
 
     @Mock ProjectRepository projectRepository;
+    @Mock ProjectMemberRepository projectMemberRepository;
     @Mock UserRepository userRepository;
     @InjectMocks ProjectService projectService;
 
@@ -35,15 +37,18 @@ class ProjectServiceTest {
     }
 
     @Test
-    void create_addsOwnerToMembers() {
+    void create_savesOwnerAsMember() {
         var owner = owner();
         when(projectRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var result = projectService.create("Alpha", "desc", owner);
 
         assertThat(result.getOwner()).isEqualTo(owner);
-        assertThat(result.getMembers()).contains(owner);
         assertThat(result.getStatus()).isEqualTo(ProjectStatus.ACTIVE);
+
+        var captor = ArgumentCaptor.forClass(ProjectMember.class);
+        verify(projectMemberRepository).save(captor.capture());
+        assertThat(captor.getValue().getUser()).isEqualTo(owner);
     }
 
     @Test

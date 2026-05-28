@@ -19,7 +19,7 @@ public class ProjectSecurityService {
     @Transactional(readOnly = true)
     public boolean isMember(UUID projectId, String email) {
         return userRepository.findByEmail(email)
-                .map(u -> projectRepository.existsByIdAndMembersContaining(projectId, u))
+                .map(u -> projectRepository.existsByIdAndMemberships_User(projectId, u))
                 .orElse(false);
     }
 
